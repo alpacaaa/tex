@@ -66,18 +66,18 @@ handleKey key value
 
 data State
   = State
-      { file :: Text
-      , offset :: Int
+      { file   :: Text
+      , offset :: (Int, Int)
       }
 
 mainRead :: IO ()
 mainRead = do
-  content <- readFile "stack.yaml"
+  content <- readFile "../co-log/co-log/README.md"
 
   let initialState
         = State
             { file = content
-            , offset = 0
+            , offset = (0, 0)
             }
 
   Termbox.main $ loopRead initialState
@@ -100,18 +100,18 @@ loopRead state = do
 drawFile :: [String] -> IO ()
 drawFile content = do
   for_ (enum content) $ \(row, line) ->
-    for_ (enum line) $ \(col, char) ->
-      Termbox.set col row (cell char mempty mempty)
+    printString (0, row) (mempty, mempty) line
 
 
 contentFromState :: State -> [String]
 contentFromState state
-  = toString <$> (drop beginning content)
+  =   (drop x . toString)
+  <$> (drop y content)
   where
     content
       = Text.lines (file state)
 
-    beginning
+    (x, y)
       = offset state
 
 
@@ -123,16 +123,27 @@ handleEvent ev state
 
       Termbox.EventKey (Termbox.KeyChar key) _  ->
         case key of
-          'j' -> loopRead (setOffset state   1)
-          'k' -> loopRead (setOffset state (-1))
+          'l' -> loopRead (setOffset state   1   0)
+          'h' -> loopRead (setOffset state (-1)  0)
+          'j' -> loopRead (setOffset state   0   1)
+          'k' -> loopRead (setOffset state   0 (-1))
           _   -> loopRead state
 
-setOffset :: State -> Int -> State
-setOffset state inc
-  = state { offset = newOffset }
+      _ ->
+        loopRead state
+
+setOffset :: State -> Int -> Int -> State
+setOffset state x y
+  = state { offset = (newX, newY) }
   where
-    newOffset
-      = max 0 (offset state + inc)
+    (oldX, oldY)
+      = offset state
+
+    newX
+      = max 0 (oldX + x)
+
+    newY
+      = max 0 (oldY + y)
 
 drawNavBar :: State -> IO ()
 drawNavBar state = do
