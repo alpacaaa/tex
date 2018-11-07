@@ -1,67 +1,18 @@
+{-# LANGUAGE DataKinds        #-}
+{-# LANGUAGE DeriveGeneric    #-}
+{-# LANGUAGE TypeApplications #-}
+
 module Lib
     ( run
     ) where
 
 
 import Relude hiding (State)
+import Control.Lens ((.~))
+import Data.Generics.Product
+
 import qualified Data.Text as Text
 import qualified Termbox as Termbox
-
-
-run :: IO ()
-run
-  -- = Termbox.main $ loopPrint "yo"
-  = mainRead
-
-
-loopPrint :: String -> IO ()
-loopPrint value = do
-  Termbox.clear Termbox.red Termbox.yellow
-  Termbox.hideCursor
-
-  -- Termbox.setInputMode
-    -- (Termbox.InputModeAlt Termbox.MouseModeNo)
-
-  for_ (enum value) $ \(index, char) -> do
-    Termbox.set
-      (3 + index)
-      3
-      (cell char mempty mempty)
-
-  Termbox.flush
-
-  event <- Termbox.poll
-  -- traceShowM $ show event
-
-  case event of
-    Termbox.EventKey key _ ->
-      handleKey key value
-
-    Termbox.EventResize width height ->
-      loopPrint value
-
-    Termbox.EventMouse _ width height ->
-      loopPrint value
-
-
-handleKey :: Termbox.Key -> String -> IO ()
-handleKey key value
-  = case key of
-      Termbox.KeyChar char ->
-        loopPrint (value <> [char])
-
-      Termbox.KeySpace ->
-        loopPrint (value <> " ")
-
-      Termbox.KeyBackspace ->
-        let len = (length value) - 1
-        in loopPrint (take len value)
-
-      Termbox.KeyCtrlC -> pure ()
-
-      _ -> loopPrint (show key)
-
------------
 
 
 data State
@@ -70,10 +21,12 @@ data State
       , offset :: (Int, Int)
       , event  :: String
       }
+  deriving (Show, Generic)
 
-mainRead :: IO ()
-mainRead = do
-  content <- readFile "../co-log/co-log/README.md"
+run :: IO ()
+run = do
+  content <- readFile "/Users/marco/TRAMPOLINE"
+  -- content <- readFile "../co-log/co-log/README.md"
 
   let initialState
         = State
@@ -107,11 +60,11 @@ drawFile content = do
 
 contentFromState :: State -> [String]
 contentFromState state
-  =   (drop x . toString)
+  =   (drop x)
   <$> (drop y content)
   where
     content
-      = Text.lines (file state)
+      = toString <$> Text.lines (file state)
 
     (x, y)
       = offset state
@@ -154,7 +107,7 @@ handleEvent ev state
 
 setOffset :: State -> Int -> Int -> State
 setOffset state x y
-  = state { offset = (newX, newY) }
+  = state & field @"offset" .~ (newX, newY)
   where
     (oldX, oldY)
       = offset state
@@ -167,7 +120,7 @@ setOffset state x y
 
 setEvent :: State -> Termbox.Event -> State
 setEvent state ev
-  = state { event = show ev }
+  = state & field @"event" .~ (show ev)
 
 drawNavBar :: State -> IO ()
 drawNavBar state = do
@@ -196,12 +149,6 @@ cell
 
 enum :: [a] -> [(Int, a)]
 enum value = zipWith (,) [1..] value
-
-isCtrlC :: Termbox.Event -> Bool
-isCtrlC ev
-  = case ev of
-      Termbox.EventKey Termbox.KeyCtrlC _ -> True
-      _                                   -> False
 
 printString
   :: (Int, Int)
