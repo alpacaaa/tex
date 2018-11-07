@@ -68,6 +68,7 @@ data State
   = State
       { file   :: Text
       , offset :: (Int, Int)
+      , event  :: String
       }
 
 mainRead :: IO ()
@@ -76,8 +77,9 @@ mainRead = do
 
   let initialState
         = State
-            { file = content
+            { file   = content
             , offset = (0, 0)
+            , event  = ""
             }
 
   Termbox.main $ loopRead initialState
@@ -123,14 +125,32 @@ handleEvent ev state
 
       Termbox.EventKey (Termbox.KeyChar key) _  ->
         case key of
-          'l' -> loopRead (setOffset state   1   0)
-          'h' -> loopRead (setOffset state (-1)  0)
-          'j' -> loopRead (setOffset state   0   1)
-          'k' -> loopRead (setOffset state   0 (-1))
+          'l' -> moveRight
+          'h' -> moveLeft
+          'j' -> moveDown
+          'k' -> moveUp
           _   -> loopRead state
 
+      Termbox.EventKey Termbox.KeyArrowDown _ ->
+        moveDown
+
+      Termbox.EventKey Termbox.KeyArrowUp _ ->
+        moveUp
+
+      Termbox.EventKey Termbox.KeyArrowLeft _ ->
+        moveLeft
+
+      Termbox.EventKey Termbox.KeyArrowRight _ ->
+        moveRight
+
       _ ->
-        loopRead state
+        loopRead (setEvent state ev)
+
+  where
+    moveLeft  = loopRead (setOffset state (-1)  0)
+    moveRight = loopRead (setOffset state   1   0)
+    moveUp    = loopRead (setOffset state   0 (-1))
+    moveDown  = loopRead (setOffset state   0   1)
 
 setOffset :: State -> Int -> Int -> State
 setOffset state x y
@@ -145,9 +165,21 @@ setOffset state x y
     newY
       = max 0 (oldY + y)
 
+setEvent :: State -> Termbox.Event -> State
+setEvent state ev
+  = state { event = show ev }
+
 drawNavBar :: State -> IO ()
 drawNavBar state = do
   (width, height) <- Termbox.size
+
+  let ev = event state
+
+  printString
+    (width - length ev - 3, height - 3)
+    (Termbox.black, Termbox.green)
+    ev
+
   printString
     (width - 10, height - 2)
     (Termbox.black, Termbox.green)
