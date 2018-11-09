@@ -20,7 +20,7 @@ data FileType
 
 data File
   = File
-      { path     :: FilePath
+      { filePath :: FilePath
       , fileType :: FileType
       }
   deriving (Show)
@@ -67,7 +67,8 @@ readFileSystem path = do
   files <- forM dirs $ \path -> do
     status <- Files.getFileStatus path
     pure File
-          { path = path
+          { filePath
+              = path
           , fileType
               = if Files.isRegularFile status
                   then NormalFile
@@ -153,14 +154,17 @@ renderTree state buffer
       = printString
           (2, row)
           (fileStyle file)
-          (path file)
+          (filePath file)
 
 drawCursor :: State -> Buffer -> Buffer
-drawCursor state@(State {windowSize = (width, _)}) buffer
+drawCursor state buffer
   = foldr go buffer [1..width]
   where
     (cursorCol, cursorRow)
       = cursorPosition state
+
+    (width, _)
+      = windowSize state
 
     go col
       = alterBuffer
