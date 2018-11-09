@@ -4,12 +4,16 @@ module FileManager where
 
 import Relude hiding (State)
 import Data.Ord (Down(..))
+import Data.List ((!!))
 import qualified Data.Map.Strict as Map
 import qualified System.Directory as Directory
 import qualified System.Posix.Files as Files
 import qualified Termbox as Termbox
 
 import qualified Debug.Trace as Debug
+
+initialRow :: Int
+initialRow = 5
 
 data FileType
   = NormalFile
@@ -46,9 +50,19 @@ type Buffer
 
 initApp :: IO State
 initApp = do
-  let currentPath = "."
+  directoryState <- readFileSystem "."
+  let initialState
+        = State
+            { directoryState = directoryState
+            , cursorPosition = (0, initialRow)
+            , windowSize = (0, 0)
+            }
 
-  dirs <- Directory.getDirectoryContents currentPath
+  pure initialState
+
+readFileSystem :: FilePath -> IO DirectoryState
+readFileSystem path = do
+  dirs <- Directory.getDirectoryContents path
   files <- forM dirs $ \path -> do
     status <- Files.getFileStatus path
     pure File
@@ -59,20 +73,10 @@ initApp = do
                   else Folder
           }
 
-  let directoryState
-        = DirectoryState
+  pure $ DirectoryState
             { files = sortOn (Data.Ord.Down . fileType) files
-            , currentPath = currentPath
+            , currentPath = path
             }
-
-      initialState
-        = State
-            { directoryState = directoryState
-            , cursorPosition = (0, 5)
-            , windowSize = (0, 0)
-            }
-
-  pure initialState
 
 run :: IO ()
 run = do
@@ -100,10 +104,17 @@ render state = do
   pure ()
 
 handleEvent :: Termbox.Event -> State -> IO ()
-handleEvent ev state@(State {cursorPosition = (x, y) })
+handleEvent ev state@(State {cursorPosition = (x, y), directoryState })
   = case ev of
      Termbox.EventKey Termbox.KeyCtrlC _ ->
        pure ()
+
+     Termbox.EventKey Termbox.KeyEnter _ ->
+         case getFile of
+           File path NormalFile -> pure ()
+           File path Folder     -> do
+               directoryState' <- readFileSystem path
+               render $ state { directoryState = directoryState' }
 
      Termbox.EventKey (Termbox.KeyChar key) _  ->
        case key of
@@ -122,6 +133,7 @@ handleEvent ev state@(State {cursorPosition = (x, y) })
   where
       moveDown = render $ state { cursorPosition = (x, y + 1) }
       moveUp = render $ state { cursorPosition = (x, y - 1) }
+      getFile = (files directoryState)!!(y - 1)
 
 renderTree :: State -> Buffer -> Buffer
 renderTree state buffer
