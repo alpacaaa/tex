@@ -21,11 +21,13 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base
+- directory
 - generic-lens
 - lens
 - relude
 - termbox
 - text
+- unix
 
 library:
   source-dirs: src
@@ -35,8 +37,10 @@ library:
   #- -Werror
 
 default-extensions:
+- LambdaCase
 - NoImplicitPrelude
 - OverloadedStrings
+- StrictData
 
 executables:
   netrw-hs-exe:

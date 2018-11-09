@@ -1,7 +1,9 @@
 module Main where
 
 import Relude
-import Lib
+-- import Lib
+import FileManager
 
 main :: IO ()
-main = run
+-- main = Lib.run
+main = FileManager.run
