@@ -8,12 +8,10 @@ import Data.List ((!!))
 import qualified Data.Map.Strict as Map
 import qualified System.Directory as Directory
 import qualified System.Posix.Files as Files
-import qualified Termbox as Termbox
+import qualified Termbox
 
 import qualified Debug.Trace as Debug
 
-initialRow :: Int
-initialRow = 5
 
 data FileType
   = NormalFile
@@ -22,14 +20,14 @@ data FileType
 
 data File
   = File
-      { path :: FilePath
+      { path     :: FilePath
       , fileType :: FileType
       }
   deriving (Show)
 
 data DirectoryState
   = DirectoryState
-      { files :: [File]
+      { files       :: [File]
       , currentPath :: FilePath
       }
   deriving (Show)
@@ -48,21 +46,24 @@ type Point
 type Buffer
   = Map Point Termbox.Cell
 
+run :: IO ()
+run = do
+  state <- initApp
+  Termbox.main $ render state
+
 initApp :: IO State
 initApp = do
   directoryState <- readFileSystem "."
-  let initialState
-        = State
-            { directoryState = directoryState
-            , cursorPosition = (0, initialRow)
-            , windowSize = (0, 0)
-            }
-
-  pure initialState
+  pure State
+        { directoryState = directoryState
+        , cursorPosition = (0, 5)
+        , windowSize     = (0, 0)
+        }
 
 readFileSystem :: FilePath -> IO DirectoryState
 readFileSystem path = do
   dirs <- Directory.getDirectoryContents path
+
   files <- forM dirs $ \path -> do
     status <- Files.getFileStatus path
     pure File
@@ -73,23 +74,19 @@ readFileSystem path = do
                   else Folder
           }
 
-  pure $ DirectoryState
-            { files = sortOn (Data.Ord.Down . fileType) files
-            , currentPath = path
-            }
-
-run :: IO ()
-run = do
-  state <- initApp
-  Termbox.main $ render state
+  pure DirectoryState
+        { files = sortOn (Data.Ord.Down . fileType) files
+        , currentPath = path
+        }
 
 render :: State -> IO ()
 render state = do
   Termbox.clear mempty mempty
-  windowSize <- Termbox.size
   Termbox.hideCursor
 
-  let state' = state { windowSize = windowSize }
+  windowSize <- Termbox.size
+
+  let state' = state { windowSize }
 
   let buffer
         = drawCursor state' mempty
@@ -101,39 +98,49 @@ render state = do
 
   event <- Termbox.poll
   handleEvent event state
-  pure ()
 
 handleEvent :: Termbox.Event -> State -> IO ()
-handleEvent ev state@(State {cursorPosition = (x, y), directoryState })
+handleEvent ev state
   = case ev of
-     Termbox.EventKey Termbox.KeyCtrlC _ ->
-       pure ()
+      Termbox.EventKey Termbox.KeyCtrlC _ ->
+        pure ()
 
-     Termbox.EventKey Termbox.KeyEnter _ ->
-         case getFile of
-           File path NormalFile -> pure ()
-           File path Folder     -> do
-               directoryState' <- readFileSystem path
-               render $ state { directoryState = directoryState' }
+      Termbox.EventKey Termbox.KeyEnter _ ->
+        handleEnterKey
 
-     Termbox.EventKey (Termbox.KeyChar key) _  ->
-       case key of
-         'j' -> moveDown
-         'k' -> moveUp
-         _   -> render state
+      Termbox.EventKey (Termbox.KeyChar key) _  ->
+        case key of
+          'j' -> moveDown
+          'k' -> moveUp
+          _   -> render state
 
-     Termbox.EventKey Termbox.KeyArrowDown _ ->
-       moveDown
+      Termbox.EventKey Termbox.KeyArrowDown _ ->
+        moveDown
 
-     Termbox.EventKey Termbox.KeyArrowUp _ ->
-       moveUp
+      Termbox.EventKey Termbox.KeyArrowUp _ ->
+        moveUp
 
-     _ ->
-       render state
+      _ ->
+        render state
+
   where
-      moveDown = render $ state { cursorPosition = (x, y + 1) }
-      moveUp = render $ state { cursorPosition = (x, y - 1) }
-      getFile = (files directoryState)!!(y - 1)
+    (x, y)
+      = cursorPosition state
+
+    moveDown
+      = render $ state { cursorPosition = (x, y + 1) }
+
+    moveUp
+      = render $ state { cursorPosition = (x, y - 1) }
+
+    handleEnterKey = undefined
+      {-
+      case getFile of
+      File path NormalFile -> pure ()
+      File path Folder     -> do
+      directoryState' <- readFileSystem path
+      render $ state { directoryState = directoryState' }
+      -}
 
 renderTree :: State -> Buffer -> Buffer
 renderTree state buffer
@@ -143,15 +150,10 @@ renderTree state buffer
       = files (directoryState state)
 
     go (row, file)
-      = case fileType file of
-          NormalFile -> printString
-                        (2, row)
-                        (Termbox.yellow, mempty)
-                        (path file)
-          Folder     -> printString
-                         (2, row)
-                         (Termbox.cyan, mempty)
-                         (path file)
+      = printString
+          (2, row)
+          (fileStyle file)
+          (path file)
 
 drawCursor :: State -> Buffer -> Buffer
 drawCursor state@(State {windowSize = (width, _)}) buffer
@@ -205,10 +207,8 @@ printString point@(col, row) style value buffer
         printString (col + 1, row) style xs
         $ alterBuffer point (cell x style) buffer
 
-{-
-  = for_ (enum value) $ \(index, char) ->
-      Termbox.set
-        (col + index)
-        row
-        (cell char fg bg)
--}
+fileStyle :: File -> (Termbox.Attr, Termbox.Attr)
+fileStyle file
+  = case fileType file of
+      NormalFile -> (mempty, mempty)
+      Folder     -> (Termbox.cyan, mempty)
