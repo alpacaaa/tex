@@ -1,6 +1,9 @@
+{-# LANGUAGE NamedFieldPuns #-}
+
 module FileManager where
 
 import Relude hiding (State)
+import Data.Ord (Down(..))
 import qualified Data.Map.Strict as Map
 import qualified System.Directory as Directory
 import qualified System.Posix.Files as Files
@@ -11,7 +14,7 @@ import qualified Debug.Trace as Debug
 data FileType
   = NormalFile
   | Folder
-  deriving (Show)
+  deriving (Show, Eq, Ord)
 
 data File
   = File
@@ -31,7 +34,7 @@ data State
   = State
       { directoryState :: DirectoryState
       , cursorPosition :: Point
-      -- , windowSize     :: (Int, Int)
+      , windowSize     :: (Int, Int)
       }
   deriving (Show)
 
@@ -45,7 +48,7 @@ initApp :: IO State
 initApp = do
   let currentPath = "."
 
-  dirs <- Directory.listDirectory currentPath
+  dirs <- Directory.getDirectoryContents currentPath
   files <- forM dirs $ \path -> do
     status <- Files.getFileStatus path
     pure File
@@ -58,7 +61,7 @@ initApp = do
 
   let directoryState
         = DirectoryState
-            { files = files
+            { files = sortOn (Data.Ord.Down . fileType) files
             , currentPath = currentPath
             }
 
@@ -66,28 +69,59 @@ initApp = do
         = State
             { directoryState = directoryState
             , cursorPosition = (0, 5)
+            , windowSize = (0, 0)
             }
 
   pure initialState
 
-
 run :: IO ()
 run = do
   state <- initApp
-  Termbox.main $ do
-    Termbox.clear mempty mempty
-    Termbox.hideCursor
+  Termbox.main $ render state
 
-    let buffer
-          = drawCursor state mempty
-          & renderTree state
+render :: State -> IO ()
+render state = do
+  Termbox.clear mempty mempty
+  windowSize <- Termbox.size
+  Termbox.hideCursor
 
-    renderBuffer buffer
+  let state' = state { windowSize = windowSize }
 
-    Termbox.flush
+  let buffer
+        = drawCursor state' mempty
+        & renderTree state'
 
-    event <- Termbox.poll
-    pure ()
+  renderBuffer buffer
+
+  Termbox.flush
+
+  event <- Termbox.poll
+  handleEvent event state
+  pure ()
+
+handleEvent :: Termbox.Event -> State -> IO ()
+handleEvent ev state@(State {cursorPosition = (x, y) })
+  = case ev of
+     Termbox.EventKey Termbox.KeyCtrlC _ ->
+       pure ()
+
+     Termbox.EventKey (Termbox.KeyChar key) _  ->
+       case key of
+         'j' -> moveDown
+         'k' -> moveUp
+         _   -> render state
+
+     Termbox.EventKey Termbox.KeyArrowDown _ ->
+       moveDown
+
+     Termbox.EventKey Termbox.KeyArrowUp _ ->
+       moveUp
+
+     _ ->
+       render state
+  where
+      moveDown = render $ state { cursorPosition = (x, y + 1) }
+      moveUp = render $ state { cursorPosition = (x, y - 1) }
 
 renderTree :: State -> Buffer -> Buffer
 renderTree state buffer
@@ -97,14 +131,19 @@ renderTree state buffer
       = files (directoryState state)
 
     go (row, file)
-      = printString
-          (2, row)
-          (mempty, mempty)
-          (path file)
+      = case fileType file of
+          NormalFile -> printString
+                        (2, row)
+                        (Termbox.yellow, mempty)
+                        (path file)
+          Folder     -> printString
+                         (2, row)
+                         (Termbox.cyan, mempty)
+                         (path file)
 
 drawCursor :: State -> Buffer -> Buffer
-drawCursor state buffer
-  = foldr go buffer [1..10]
+drawCursor state@(State {windowSize = (width, _)}) buffer
+  = foldr go buffer [1..width]
   where
     (cursorCol, cursorRow)
       = cursorPosition state
