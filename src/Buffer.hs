@@ -2,7 +2,6 @@ module Buffer where
 
 import           Relude
 
-import qualified Data.List.PointedList as PointedList
 import qualified Data.Map.Strict as Map
 import qualified Termbox
 
@@ -47,7 +46,7 @@ render state = do
         & renderTree env state
         -- & renderDebug env state
 
-  renderBuffer buffer (1, 1)
+  renderBuffer buffer (2, 1)
 
   Termbox.flush
 
@@ -78,17 +77,19 @@ handleEvent ev
       _ ->
         UnrecognizedInput ev
 
-
 renderTree :: Env -> Core.State -> Buffer -> Buffer
 renderTree env state buffer
-  = foldr go buffer (enum $ drop offset $ toList fileList)
+  = foldr go buffer files
   where
-    fileList
+    files
       = Core.files state
+        & toList
+        & drop offset
+        & enum
 
     go (row, file)
       = printString
-          (2, row)
+          (0, row)
           (fileStyle file)
           (Core.filePath file)
 
@@ -171,11 +172,11 @@ cursorPosition env state
       then index
       else index - offset
   where
-    offset
-      = bufferOffset env
-
     index
       = Core.currentIndex state
+
+    offset
+      = bufferOffset env
 
 determineOffset :: (Int, Int) -> Core.State -> Int
 determineOffset (_, height) state

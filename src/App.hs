@@ -40,8 +40,7 @@ main :: IO ()
 main = do
   result <-
     Buffer.run $ runApp $ do
-      let path = "."
-      state <- Core.newStateFromFolder path
+      state <- Core.newStateFromFolder "."
       loop state
 
   case result of
