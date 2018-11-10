@@ -21,14 +21,10 @@ instance Core.FileSystem App where
     dirContent <- liftIO $ Directory.listDirectory dir
 
     files <- forM (dirContent <> [".."]) $ \path -> do
-      status <- liftIO $ Files.getFileStatus (dir </> path)
+      fileType <- liftIO $ getFileType (dir </> path)
       pure Core.File
-            { Core.filePath
-                = path
-            , Core.fileType
-                = if Files.isRegularFile status
-                    then Core.NormalFile
-                    else Core.Folder
+            { Core.filePath = path
+            , Core.fileType = fileType
             }
 
     case PointedList.fromList files of
@@ -37,6 +33,21 @@ instance Core.FileSystem App where
 
   resolvePath
     = liftIO . Directory.canonicalizePath
+
+getFileType :: FilePath -> IO Core.FileType
+getFileType path = do
+  status <- Files.getSymbolicLinkStatus path
+
+  if Files.isDirectory status
+    then pure Core.Folder
+    else if Files.isSymbolicLink status
+          then doSymbolic
+          else pure Core.NormalFile
+
+  where
+    doSymbolic = do
+      link <- Files.readSymbolicLink path
+      pure (Core.SymbolicLink link)
 
 main :: IO ()
 main = do

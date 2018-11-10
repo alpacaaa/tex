@@ -91,7 +91,7 @@ renderTree env state buffer
       = printString
           (0, row)
           (fileStyle file)
-          (Core.filePath file)
+          (Core.fileDisplayName file)
 
     offset
       = bufferOffset env
@@ -163,8 +163,9 @@ printString point@(col, row) style value buffer
 fileStyle :: Core.File -> (Termbox.Attr, Termbox.Attr)
 fileStyle file
   = case Core.fileType file of
-      Core.NormalFile -> (mempty, mempty)
-      Core.Folder     -> (Termbox.cyan, mempty)
+      Core.NormalFile      -> (mempty, mempty)
+      Core.Folder          -> (Termbox.cyan, mempty)
+      Core.SymbolicLink _  -> (Termbox.magenta, mempty)
 
 cursorPosition :: Env -> Core.State -> Int
 cursorPosition env state

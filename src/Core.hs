@@ -22,6 +22,7 @@ data State
 data FileType
   = NormalFile
   | Folder
+  | SymbolicLink FilePath
   deriving (Show, Eq)
 
 data File
@@ -74,6 +75,10 @@ update state = \case
         canonical <- resolvePath currentFullPath
         pure $ FileSelected canonical
 
+      SymbolicLink _ -> do
+        canonical <- resolvePath currentFullPath
+        pure $ FileSelected canonical
+
   where
     running newState
       = pure (Running newState)
@@ -119,3 +124,11 @@ sortFiles files
 currentIndex :: State -> Int
 currentIndex state
   = PointedList.index (files state)
+
+fileDisplayName :: File -> String
+fileDisplayName file
+  = filePath file
+    <> case fileType file of
+        Folder -> ""
+        NormalFile -> ""
+        SymbolicLink link -> " -> " <> link
