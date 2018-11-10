@@ -3,8 +3,8 @@
 module FileManager where
 
 import Relude hiding (State)
-import Data.Ord (Down(..))
-import Data.List ((!!))
+import qualified Data.Ord
+import qualified Data.List.PointedList as PointedList
 import qualified Data.Map.Strict as Map
 import qualified System.Directory as Directory
 import qualified System.Posix.Files as Files
@@ -23,12 +23,11 @@ data File
       { filePath :: FilePath
       , fileType :: FileType
       }
-  deriving (Show)
+  deriving (Show, Eq, Ord)
 
 data DirectoryState
   = DirectoryState
-      { files       :: [File]
-      , currentPath :: FilePath
+      { files :: PointedList.PointedList File
       }
   deriving (Show)
 
@@ -46,6 +45,13 @@ type Point
 type Buffer
   = Map Point Termbox.Cell
 
+data Cmd
+  = Quit
+  | JumpNext
+  | JumpPrev
+  | SelectFile FilePath
+  | SelectFolder FilePath
+
 run :: IO ()
 run = do
   state <- initApp
@@ -53,18 +59,20 @@ run = do
 
 initApp :: IO State
 initApp = do
-  directoryState <- readFileSystem "."
+  directoryState <-
+    toDirectoryState <$> scanCurrentDirectory
+
   pure State
         { directoryState = directoryState
-        , cursorPosition = (0, 5)
+        , cursorPosition = (0, 1)
         , windowSize     = (0, 0)
         }
 
-readFileSystem :: FilePath -> IO DirectoryState
-readFileSystem path = do
-  dirs <- Directory.getDirectoryContents path
+scanCurrentDirectory :: IO [File]
+scanCurrentDirectory = do
+  dirs <- Directory.getDirectoryContents "."
 
-  files <- forM dirs $ \path -> do
+  forM dirs $ \path -> do
     status <- Files.getFileStatus path
     pure File
           { filePath
@@ -75,10 +83,21 @@ readFileSystem path = do
                   else Folder
           }
 
-  pure DirectoryState
-        { files = sortOn (Data.Ord.Down . fileType) files
-        , currentPath = path
-        }
+toDirectoryState :: [File] -> DirectoryState
+toDirectoryState files
+  = DirectoryState
+      { files = pointedFiles
+      }
+  where
+    sortedFiles
+      = sortOn (Data.Ord.Down . fileType) files
+
+    pointedFiles
+      = case uncons sortedFiles of
+          Just (focus, after) ->
+            PointedList.PointedList [] focus after
+          Nothing             ->
+            error "impossible toDirectoryState"
 
 render :: State -> IO ()
 render state = do
@@ -98,54 +117,110 @@ render state = do
   Termbox.flush
 
   event <- Termbox.poll
-  handleEvent event state
+  case eventToCmd state event of
+    Just cmd -> handleCmd cmd state
+    Nothing  -> render state
 
-handleEvent :: Termbox.Event -> State -> IO ()
-handleEvent ev state
-  = case ev of
-      Termbox.EventKey Termbox.KeyCtrlC _ ->
-        pure ()
+eventToCmd :: State -> Termbox.Event -> Maybe Cmd
+eventToCmd state = \case
+  Termbox.EventKey Termbox.KeyCtrlC _ ->
+    Just Quit
 
-      Termbox.EventKey Termbox.KeyEnter _ ->
-        handleEnterKey
+  Termbox.EventKey Termbox.KeyEnter _ ->
+    case fileType current of
+      NormalFile -> Just $ SelectFile (filePath current)
+      Folder     -> Just $ SelectFolder (filePath current)
 
-      Termbox.EventKey (Termbox.KeyChar key) _  ->
-        case key of
-          'j' -> moveDown
-          'k' -> moveUp
-          _   -> render state
+  Termbox.EventKey (Termbox.KeyChar key) _  ->
+    case key of
+      'j' -> moveDown
+      'k' -> moveUp
+      _   -> Nothing
 
-      Termbox.EventKey Termbox.KeyArrowDown _ ->
-        moveDown
+  Termbox.EventKey Termbox.KeyArrowDown _ ->
+    moveDown
 
-      Termbox.EventKey Termbox.KeyArrowUp _ ->
-        moveUp
+  Termbox.EventKey Termbox.KeyArrowUp _ ->
+    moveUp
 
-      _ ->
-        render state
+  _ ->
+    Nothing
 
   where
-    (x, y)
-      = cursorPosition state
+    current
+      = PointedList._focus fileList
 
-    moveDown
-      = render $ state { cursorPosition = (x, y + 1) }
+    fileList
+      = files (directoryState state)
 
     moveUp
-      = render $ state { cursorPosition = (x, y - 1) }
+      =   const JumpPrev
+      <$> PointedList.previous fileList
 
-    handleEnterKey = undefined
-      {-
-      case getFile of
-      File path NormalFile -> pure ()
-      File path Folder     -> do
-      directoryState' <- readFileSystem path
-      render $ state { directoryState = directoryState' }
-      -}
+    moveDown
+      =   const JumpNext
+      <$> PointedList.next fileList
+
+handleCmd :: Cmd -> State -> IO ()
+handleCmd cmd state
+  = case cmd of
+      Quit ->
+        pure ()
+
+      JumpNext ->
+        let
+          dirState
+            = directoryState state
+
+          newDirectoryState
+            = dirState { files = PointedList.tryNext (files dirState) }
+
+          (x, y)
+            = cursorPosition state
+
+        in render $ state
+            { directoryState = newDirectoryState
+            , cursorPosition = (x, y + 1)
+            }
+
+      JumpPrev ->
+        let
+          dirState
+            = directoryState state
+
+          newDirectoryState
+            = dirState { files = PointedList.tryPrevious (files dirState) }
+
+          (x, y)
+            = cursorPosition state
+
+        in render $ state
+            { directoryState = newDirectoryState
+            , cursorPosition = (x, y - 1)
+            }
+
+      SelectFile file ->
+        pure ()
+
+      SelectFolder path -> do
+        Directory.setCurrentDirectory path
+
+        directoryState <-
+          toDirectoryState <$> scanCurrentDirectory
+
+        render $ state
+          { directoryState = directoryState
+          , cursorPosition = (0, 1)
+          }
+
+
+  where
+    fileList
+      = files (directoryState state)
 
 renderTree :: State -> Buffer -> Buffer
 renderTree state buffer
-  = foldr go buffer (enum fileList)
+  = foldr go buffer (enum $ toList fileList)
   where
     fileList
       = files (directoryState state)
@@ -169,13 +244,12 @@ drawCursor state buffer
     go col
       = alterBuffer
           (col, cursorRow)
-          (Termbox.Cell ' ' Termbox.red Termbox.green)
+          (Termbox.Cell ' ' Termbox.underline mempty)
 
 renderBuffer :: Buffer -> IO ()
 renderBuffer buffer
   = for_ (Map.toList buffer) $ \((x, y), cell) ->
       Termbox.set x y cell
-
 
 alterBuffer :: Point -> Termbox.Cell -> Buffer -> Buffer
 alterBuffer point (Termbox.Cell c fg bg)

@@ -25,6 +25,7 @@ dependencies:
 - directory
 - generic-lens
 - lens
+- pointedlist
 - relude
 - termbox
 - text
