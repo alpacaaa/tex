@@ -1,6 +1,6 @@
 module Buffer where
 
-import Relude
+import           Relude
 
 import qualified Data.List.PointedList as PointedList
 import qualified Data.Map.Strict as Map
@@ -86,7 +86,7 @@ drawCursor :: Core.Env -> Core.State -> Buffer -> Buffer
 drawCursor env state buffer
   = foldr go buffer [1..width]
   where
-    (cursorCol, cursorRow)
+    cursorRow
       = cursorPosition state
 
     (width, _)
@@ -106,7 +106,6 @@ renderDebug env state buffer
 
     index
       = PointedList.index (Core.files state)
-
 
 renderBuffer :: Buffer -> (Int, Int) -> IO ()
 renderBuffer buffer (offsetX, offsetY)
@@ -153,9 +152,6 @@ fileStyle file
       Core.NormalFile -> (mempty, mempty)
       Core.Folder     -> (Termbox.cyan, mempty)
 
-cursorPosition :: Core.State -> (Int, Int)
+cursorPosition :: Core.State -> Int
 cursorPosition state
-  = (0, index)
-  where
-    index
-      = PointedList.index (Core.files state)
+  = PointedList.index (Core.files state)
