@@ -3,9 +3,9 @@ module Core where
 import           Relude hiding (State)
 import           System.FilePath.Posix ((</>))
 
+import qualified Data.List as List
 import qualified Data.List.PointedList as PointedList
 import qualified Data.Map.Strict as Map
-import qualified Data.Ord
 
 
 type FilesList
@@ -22,14 +22,14 @@ data State
 data FileType
   = NormalFile
   | Folder
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq)
 
 data File
   = File
       { filePath :: FilePath
       , fileType :: FileType
       }
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq)
 
 data Cmd
   = JumpNext
@@ -43,6 +43,7 @@ data UpdateResult
 
 class Monad m => FileSystem m where
   scanDirectory :: FilePath -> m FilesList
+  resolvePath :: FilePath -> m FilePath
 
 update :: (FileSystem m) => State -> Cmd -> m UpdateResult
 update state = \case
@@ -69,8 +70,9 @@ update state = \case
                     , currentPath = currentFullPath
                     }
 
-      NormalFile ->
-        pure $ FileSelected currentFullPath
+      NormalFile -> do
+        canonical <- resolvePath currentFullPath
+        pure $ FileSelected canonical
 
   where
     running newState
@@ -96,7 +98,6 @@ newStateFromFolder path = do
         , originalPath = path
         }
 
--- TODO sorting is funky. Needs to take sorting mode.
 sortFiles :: FilesList -> FilesList
 sortFiles files
   = case PointedList.fromList sorted of
@@ -107,9 +108,13 @@ sortFiles files
         error "impossible sortFiles"
   where
     sorted
-      = sortOn
-          (Data.Ord.Down . fileType)
-          (toList files)
+      = sortFn folders <> sortFn rest
+
+    sortFn
+      = sortOn filePath
+
+    (folders, rest)
+      = List.partition (\f -> fileType f == Folder) (toList files)
 
 currentIndex :: State -> Int
 currentIndex state

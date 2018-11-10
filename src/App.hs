@@ -19,9 +19,9 @@ newtype App a
 
 instance Core.FileSystem App where
   scanDirectory dir = do
-    dirContent <- liftIO $ Directory.getDirectoryContents dir
+    dirContent <- liftIO $ Directory.listDirectory dir
 
-    files <- forM dirContent $ \path -> do
+    files <- forM (dirContent <> [".."]) $ \path -> do
       status <- liftIO $ Files.getFileStatus (dir </> path)
       pure Core.File
             { Core.filePath
@@ -35,6 +35,9 @@ instance Core.FileSystem App where
     case PointedList.fromList files of
       Just result -> pure result
       Nothing     -> error "no files found" -- TODO return Left someerror
+
+  resolvePath
+    = liftIO . Directory.canonicalizePath
 
 main :: IO ()
 main = do
