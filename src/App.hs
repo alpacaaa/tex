@@ -40,22 +40,17 @@ main :: IO ()
 main = do
   Buffer.run $ runApp $ do
     let path = "."
-        env  = Core.Env
-                { Core.originalPath = path
-                , Core.windowSize = (0, 0)
-                }
-
     state <- Core.newStateFromFolder path
-    loop env state
+    loop state
 
-loop :: Core.Env -> Core.State -> App ()
-loop env state = do
-  event <- liftIO $ Buffer.render env state
+loop :: Core.State -> App ()
+loop state = do
+  event <- liftIO $ Buffer.render state
   case event of
     Buffer.Quit ->
       pure ()
     Buffer.UnrecognizedInput _ ->
-      loop env state
+      loop state
     Buffer.AppCmd cmd -> do
       newState <- Core.update state cmd
-      loop env newState
+      loop newState

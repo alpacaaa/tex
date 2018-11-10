@@ -20,22 +20,26 @@ type Point
 type Buffer
   = Map Point Termbox.Cell
 
+data Env
+  = Env
+      { windowSize :: (Int, Int)
+      }
+
 run :: IO a -> IO a
 run = Termbox.main
 
-render :: Core.Env -> Core.State -> IO Event
-render env state = do
+render :: Core.State -> IO Event
+render state = do
   Termbox.clear mempty mempty
   Termbox.hideCursor
 
-  windowSize <- Termbox.size
-  let newEnv
-        = env { Core.windowSize = windowSize }
+  size <- Termbox.size
+  let env = Env { windowSize = size }
 
   let buffer
-        = drawCursor newEnv state mempty
-        & renderTree newEnv state
-        -- & renderDebug newEnv state
+        = drawCursor env state mempty
+        & renderTree env state
+        -- & renderDebug env state
 
   renderBuffer buffer (1, 1)
 
@@ -69,7 +73,7 @@ handleEvent ev
         UnrecognizedInput ev
 
 
-renderTree :: Core.Env -> Core.State -> Buffer -> Buffer
+renderTree :: Env -> Core.State -> Buffer -> Buffer
 renderTree env state buffer
   = foldr go buffer (enum $ toList fileList)
   where
@@ -82,7 +86,7 @@ renderTree env state buffer
           (fileStyle file)
           (Core.filePath file)
 
-drawCursor :: Core.Env -> Core.State -> Buffer -> Buffer
+drawCursor :: Env -> Core.State -> Buffer -> Buffer
 drawCursor env state buffer
   = foldr go buffer [1..width]
   where
@@ -90,19 +94,19 @@ drawCursor env state buffer
       = cursorPosition state
 
     (width, _)
-      = Core.windowSize env
+      = windowSize env
 
     go col
       = alterBuffer
           (col, cursorRow)
           (Termbox.Cell ' ' Termbox.underline mempty)
 
-renderDebug :: Core.Env -> Core.State -> Buffer -> Buffer
+renderDebug :: Env -> Core.State -> Buffer -> Buffer
 renderDebug env state buffer
   = printString (20, 30) (mempty, mempty) (show width) buffer
   where
     (width, _)
-      = Core.windowSize env
+      = windowSize env
 
     index
       = PointedList.index (Core.files state)

@@ -8,20 +8,14 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Ord
 
 
-data Env
-  = Env
-      { windowSize   :: (Int, Int)
-      , originalPath :: FilePath
-      }
-  deriving (Show)
-
 type FilesList
   = PointedList.PointedList File
 
 data State
   = State
-      { files       :: FilesList
-      , currentPath :: FilePath
+      { files        :: FilesList
+      , currentPath  :: FilePath
+      , originalPath :: FilePath
       }
   deriving (Show)
 
@@ -75,8 +69,9 @@ newStateFromFolder :: FileSystem m => FilePath -> m State
 newStateFromFolder path = do
   newFiles <- scanDirectory path
   pure State
-        { files       = sortFiles newFiles
-        , currentPath = path
+        { files        = sortFiles newFiles
+        , currentPath  = path
+        , originalPath = path
         }
 
 sortFiles :: FilesList -> FilesList
