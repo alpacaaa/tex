@@ -2,6 +2,7 @@ module Buffer where
 
 import Relude
 
+import qualified Data.List.PointedList as PointedList
 import qualified Data.Map.Strict as Map
 import qualified Termbox
 
@@ -30,8 +31,9 @@ render env state = do
         = env { Core.windowSize = windowSize }
 
   let buffer
-        = drawCursor env state mempty
-        & renderTree env state
+        = drawCursor newEnv state mempty
+        & renderTree newEnv state
+        -- & renderDebug newEnv state
 
   renderBuffer buffer
 
@@ -93,6 +95,17 @@ drawCursor env state buffer
           (col, cursorRow)
           (Termbox.Cell ' ' Termbox.underline mempty)
 
+renderDebug :: Core.Env -> Core.State -> Buffer -> Buffer
+renderDebug env state buffer
+  = printString (20, 30) (mempty, mempty) (show width) buffer
+  where
+    (width, _)
+      = Core.windowSize env
+
+    index
+      = PointedList.index (Core.files state)
+
+
 renderBuffer :: Buffer -> IO ()
 renderBuffer buffer
   = for_ (Map.toList buffer) $ \((x, y), cell) ->
@@ -116,7 +129,7 @@ cell c (fg, bg)
   = Termbox.Cell c fg bg
 
 enum :: [a] -> [(Int, a)]
-enum value = zipWith (,) [1..] value
+enum value = zipWith (,) [0..] value
 
 printString
   :: Point
@@ -139,4 +152,8 @@ fileStyle file
       Core.Folder     -> (Termbox.cyan, mempty)
 
 cursorPosition :: Core.State -> (Int, Int)
-cursorPosition = undefined
+cursorPosition state
+  = (0, index)
+  where
+    index
+      = PointedList.index (Core.files state)
