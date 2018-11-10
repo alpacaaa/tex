@@ -37,53 +37,76 @@ data Cmd
   | SelectCurrentFile
   deriving (Show)
 
+data UpdateResult
+  = FileSelected FilePath
+  | Running State
+
 class Monad m => FileSystem m where
   scanDirectory :: FilePath -> m FilesList
 
-update :: (FileSystem m) => State -> Cmd -> m State
+update :: (FileSystem m) => State -> Cmd -> m UpdateResult
 update state = \case
   JumpNext ->
     case PointedList.next (files state) of
       Just newFiles ->
-        pure $ state { files = newFiles }
+        running $ state { files = newFiles }
       Nothing ->
-        pure state
+        running state
 
   JumpPrev ->
     case PointedList.previous (files state) of
       Just newFiles ->
-        pure $ state { files = newFiles }
+        running $ state { files = newFiles }
       Nothing ->
-        pure state
+        running state
 
   SelectCurrentFile -> do
-    let current = PointedList._focus (files state)
     case fileType current of
-      Folder ->
-        newStateFromFolder
-          $ currentPath state </> filePath current
+      Folder -> do
+        newFiles <- scanAndSortFolder currentFullPath
+        running $ state
+                    { files = newFiles
+                    , currentPath = currentFullPath
+                    }
+
       NormalFile ->
-        pure state
+        pure $ FileSelected currentFullPath
+
+  where
+    running newState
+      = pure (Running newState)
+
+    current
+      = PointedList._focus (files state)
+
+    currentFullPath
+      = currentPath state </> filePath current
+
+scanAndSortFolder :: FileSystem m => FilePath -> m FilesList
+scanAndSortFolder path = do
+  files <- scanDirectory path
+  pure (sortFiles files)
 
 newStateFromFolder :: FileSystem m => FilePath -> m State
 newStateFromFolder path = do
-  newFiles <- scanDirectory path
+  files <- scanAndSortFolder path
   pure State
-        { files        = sortFiles newFiles
+        { files        = files
         , currentPath  = path
         , originalPath = path
         }
 
+-- TODO sorting is funky. Needs to take sorting mode.
 sortFiles :: FilesList -> FilesList
 sortFiles files
-  = case PointedList.fromList sortedFiles of
+  = case PointedList.fromList sorted of
       Just result ->
         result
       Nothing ->
         -- We know the list has at least one element
         error "impossible sortFiles"
   where
-    sortedFiles
+    sorted
       = sortOn
           (Data.Ord.Down . fileType)
           (toList files)

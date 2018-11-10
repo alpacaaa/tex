@@ -38,19 +38,31 @@ instance Core.FileSystem App where
 
 main :: IO ()
 main = do
-  Buffer.run $ runApp $ do
-    let path = "."
-    state <- Core.newStateFromFolder path
-    loop state
+  result <-
+    Buffer.run $ runApp $ do
+      let path = "."
+      state <- Core.newStateFromFolder path
+      loop state
 
-loop :: Core.State -> App ()
+  case result of
+    Just finalPath -> putStrLn finalPath
+    Nothing        -> pure ()
+
+loop :: Core.State -> App (Maybe FilePath)
 loop state = do
   event <- liftIO $ Buffer.render state
+
   case event of
     Buffer.Quit ->
-      pure ()
+      pure Nothing
+
     Buffer.UnrecognizedInput _ ->
       loop state
+
     Buffer.AppCmd cmd -> do
-      newState <- Core.update state cmd
-      loop newState
+      result <- Core.update state cmd
+      case result of
+        Core.Running newState ->
+          loop newState
+        Core.FileSelected path ->
+          pure (Just path)
