@@ -6,7 +6,6 @@ import           System.FilePath.Posix ((</>))
 
 import qualified Data.List.PointedList as PointedList
 import qualified System.Directory as Directory
-import qualified System.FilePath.Posix as FilePath
 import qualified System.Posix.Files as Files
 
 import qualified Core
