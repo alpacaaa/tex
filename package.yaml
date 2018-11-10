@@ -23,6 +23,7 @@ dependencies:
 - base
 - containers
 - directory
+- filepath
 - generic-lens
 - lens
 - pointedlist
