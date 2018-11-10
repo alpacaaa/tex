@@ -40,8 +40,7 @@ data File
 data Cmd
   = JumpNext
   | JumpPrev
-  | SelectFile FilePath
-  | SelectFolder FilePath
+  | SelectCurrentFile
   deriving (Show)
 
 class Monad m => FileSystem m where
@@ -63,11 +62,14 @@ update state = \case
       Nothing ->
         pure state
 
-  SelectFile file ->
-    pure state
-
-  SelectFolder folder -> do
-    newStateFromFolder $ currentPath state </> folder
+  SelectCurrentFile -> do
+    let current = PointedList._focus (files state)
+    case fileType current of
+      Folder ->
+        newStateFromFolder
+          $ currentPath state </> filePath current
+      NormalFile ->
+        pure state
 
 newStateFromFolder :: FileSystem m => FilePath -> m State
 newStateFromFolder path = do
