@@ -84,7 +84,7 @@ renderTree env state buffer
     files
       = Core.files state
         & toList
-        & drop offset
+        & drop (bufferOffset env)
         & enum
 
     go (row, file)
@@ -92,9 +92,6 @@ renderTree env state buffer
           (0, row)
           (fileStyle file)
           (Core.fileDisplayName file)
-
-    offset
-      = bufferOffset env
 
 drawCursor :: Env -> Core.State -> Buffer -> Buffer
 drawCursor env state buffer

@@ -37,14 +37,14 @@ instance Core.FileSystem App where
 getFileType :: FilePath -> IO Core.FileType
 getFileType path = do
   status <- Files.getSymbolicLinkStatus path
-
-  if Files.isDirectory status
-    then pure Core.Folder
-    else if Files.isSymbolicLink status
-          then doSymbolic
-          else pure Core.NormalFile
+  go status
 
   where
+    go status
+      | Files.isDirectory status    = pure Core.Folder
+      | Files.isSymbolicLink status = doSymbolic
+      | otherwise                   = pure Core.NormalFile
+
     doSymbolic = do
       link <- Files.readSymbolicLink path
       pure (Core.SymbolicLink link)

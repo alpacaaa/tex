@@ -44,7 +44,7 @@ data UpdateResult
 
 class Monad m => FileSystem m where
   scanDirectory :: FilePath -> m FilesList
-  resolvePath :: FilePath -> m FilePath
+  resolvePath   :: FilePath -> m FilePath
 
 update :: (FileSystem m) => State -> Cmd -> m UpdateResult
 update state = \case
@@ -129,6 +129,6 @@ fileDisplayName :: File -> String
 fileDisplayName file
   = filePath file
     <> case fileType file of
-        Folder -> ""
-        NormalFile -> ""
+        Folder            -> ""
+        NormalFile        -> ""
         SymbolicLink link -> " -> " <> link
