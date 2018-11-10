@@ -22,7 +22,8 @@ type Buffer
 
 data Env
   = Env
-      { windowSize :: (Int, Int)
+      { windowSize   :: (Int, Int)
+      , bufferOffset :: Int
       }
 
 run :: IO a -> IO a
@@ -34,7 +35,12 @@ render state = do
   Termbox.hideCursor
 
   size <- Termbox.size
-  let env = Env { windowSize = size }
+  let offset = determineOffset size state
+  let env
+       = Env
+          { windowSize   = size
+          , bufferOffset = offset
+          }
 
   let buffer
         = drawCursor env state mempty
@@ -75,7 +81,7 @@ handleEvent ev
 
 renderTree :: Env -> Core.State -> Buffer -> Buffer
 renderTree env state buffer
-  = foldr go buffer (enum $ toList fileList)
+  = foldr go buffer (enum $ drop offset $ toList fileList)
   where
     fileList
       = Core.files state
@@ -86,12 +92,15 @@ renderTree env state buffer
           (fileStyle file)
           (Core.filePath file)
 
+    offset
+      = bufferOffset env
+
 drawCursor :: Env -> Core.State -> Buffer -> Buffer
 drawCursor env state buffer
   = foldr go buffer [1..width]
   where
     cursorRow
-      = cursorPosition state
+      = cursorPosition env state
 
     (width, _)
       = windowSize env
@@ -109,7 +118,7 @@ renderDebug env state buffer
       = windowSize env
 
     index
-      = PointedList.index (Core.files state)
+      = Core.currentIndex state
 
 renderBuffer :: Buffer -> (Int, Int) -> IO ()
 renderBuffer buffer (offsetX, offsetY)
@@ -156,6 +165,26 @@ fileStyle file
       Core.NormalFile -> (mempty, mempty)
       Core.Folder     -> (Termbox.cyan, mempty)
 
-cursorPosition :: Core.State -> Int
-cursorPosition state
-  = PointedList.index (Core.files state)
+cursorPosition :: Env -> Core.State -> Int
+cursorPosition env state
+  = if offset == 0
+      then index
+      else index - offset
+  where
+    offset
+      = bufferOffset env
+
+    index
+      = Core.currentIndex state
+
+determineOffset :: (Int, Int) -> Core.State -> Int
+determineOffset (_, height) state
+  = if index < threshold
+      then 0
+      else index - threshold
+  where
+    index
+      = Core.currentIndex state
+
+    threshold
+      = round (0.75 * fromIntegral height)

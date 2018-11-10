@@ -110,3 +110,7 @@ sortFiles files
       = sortOn
           (Data.Ord.Down . fileType)
           (toList files)
+
+currentIndex :: State -> Int
+currentIndex state
+  = PointedList.index (files state)
