@@ -20,6 +20,8 @@ type Point
 type Buffer
   = Map Point Termbox.Cell
 
+run :: IO a -> IO a
+run = Termbox.main
 
 render :: Core.Env -> Core.State -> IO Event
 render env state = do
@@ -35,7 +37,7 @@ render env state = do
         & renderTree newEnv state
         -- & renderDebug newEnv state
 
-  renderBuffer buffer
+  renderBuffer buffer (1, 1)
 
   Termbox.flush
 
@@ -106,10 +108,10 @@ renderDebug env state buffer
       = PointedList.index (Core.files state)
 
 
-renderBuffer :: Buffer -> IO ()
-renderBuffer buffer
+renderBuffer :: Buffer -> (Int, Int) -> IO ()
+renderBuffer buffer (offsetX, offsetY)
   = for_ (Map.toList buffer) $ \((x, y), cell) ->
-      Termbox.set x y cell
+      Termbox.set (offsetX + x) (offsetY + y) cell
 
 alterBuffer :: Point -> Termbox.Cell -> Buffer -> Buffer
 alterBuffer point (Termbox.Cell c fg bg)

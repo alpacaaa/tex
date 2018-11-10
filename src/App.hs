@@ -8,7 +8,6 @@ import qualified Data.List.PointedList as PointedList
 import qualified System.Directory as Directory
 import qualified System.FilePath.Posix as FilePath
 import qualified System.Posix.Files as Files
-import qualified Termbox
 
 import qualified Core
 import qualified Buffer
@@ -39,7 +38,7 @@ instance Core.FileSystem App where
 
 main :: IO ()
 main = do
-  Termbox.main $ runApp $ do
+  Buffer.run $ runApp $ do
     let path = "."
         env  = Core.Env
                 { Core.originalPath = path
