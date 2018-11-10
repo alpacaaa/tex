@@ -37,7 +37,6 @@ instance Core.FileSystem App where
       Just result -> pure result
       Nothing     -> error "no files found" -- TODO return Left someerror
 
-
 main :: IO ()
 main = do
   Termbox.main $ runApp $ do
@@ -50,11 +49,14 @@ main = do
     state <- Core.newStateFromFolder path
     loop env state
 
+loop :: Core.Env -> Core.State -> App ()
 loop env state = do
   event <- liftIO $ Buffer.render env state
   case event of
-    Buffer.Quit -> pure ()
-    Buffer.UnrecognizedInput _ -> loop env state
+    Buffer.Quit ->
+      pure ()
+    Buffer.UnrecognizedInput _ ->
+      loop env state
     Buffer.AppCmd cmd -> do
       newState <- Core.update state cmd
       loop env newState
