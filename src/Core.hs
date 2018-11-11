@@ -1,11 +1,10 @@
 module Core where
 
-import           Relude hiding (State)
+import           Relude hiding (State, state)
 import           System.FilePath.Posix ((</>))
 
 import qualified Data.List as List
 import qualified Data.List.PointedList as PointedList
-import qualified Data.Map.Strict as Map
 
 
 type FilesList
@@ -116,17 +115,17 @@ update state = \case
 
 scanAndSortFolder :: FileSystem m => FilePath -> m FilesList
 scanAndSortFolder path = do
-  files <- scanDirectory path
-  pure (sortFiles files)
+  filesList <- scanDirectory path
+  pure (sortFiles filesList)
 
 newStateFromFolder :: FileSystem m => FilePath -> m State
 newStateFromFolder path = do
   canonical <- resolvePath path
-  files <- scanAndSortFolder canonical
+  filesList <- scanAndSortFolder canonical
   home <- homeDirectoryPath
 
   pure State
-        { files         = files
+        { files         = filesList
         , currentPath   = canonical
         , originalPath  = canonical
         , homeDirectory = home
@@ -142,7 +141,7 @@ switchFolder state path = do
         }
 
 sortFiles :: FilesList -> FilesList
-sortFiles files
+sortFiles filesList
   = case PointedList.fromList sorted of
       Just result ->
         result
@@ -157,7 +156,9 @@ sortFiles files
       = sortOn filePath
 
     (folders, rest)
-      = List.partition (\f -> fileType f == Folder) (toList files)
+      = List.partition
+          (\f -> fileType f == Folder)
+          (toList filesList)
 
 currentIndex :: State -> Int
 currentIndex state

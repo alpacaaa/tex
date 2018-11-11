@@ -1,7 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module App where
 
-import           Relude
+import           Relude hiding (state)
 import           System.FilePath.Posix ((</>))
 
 import qualified Data.List.PointedList as PointedList

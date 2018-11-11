@@ -32,9 +32,9 @@ dependencies:
 library:
   source-dirs: src
 
-#ghc-options:
-  #- -Wall
-  #- -Werror
+ghc-options:
+  - -Wall
+  - -Werror
 
 default-extensions:
 - LambdaCase

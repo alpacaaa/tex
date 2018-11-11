@@ -1,6 +1,6 @@
 module Buffer where
 
-import           Relude
+import           Relude hiding (state)
 
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
@@ -35,23 +35,23 @@ render state = do
   Termbox.hideCursor
 
   size <- Termbox.size
-  let offset = determineOffset size state
-  let env
+  let offset= determineOffset size state
+
+      env
        = Env
           { windowSize   = size
           , bufferOffset = offset
           }
 
-  let buffer
+      mainBuffer
         = drawCursor env state mempty
         & renderTree env state
-        -- & renderDebug env state
 
       folderInfo
         = drawFolderInfo env state mempty
 
   renderBuffer folderInfo (2, 1)
-  renderBuffer buffer (2, 2)
+  renderBuffer mainBuffer (2, 2)
 
   Termbox.flush
 
@@ -131,7 +131,7 @@ drawCursor env state buffer
           (Termbox.Cell ' ' Termbox.underline mempty)
 
 drawFolderInfo :: Env -> Core.State -> Buffer -> Buffer
-drawFolderInfo env state buffer
+drawFolderInfo _ state buffer
   = printString
       (0, 0)
       (Termbox.green <> Termbox.bold, mempty)
@@ -147,16 +147,6 @@ drawFolderInfo env state buffer
     home = Core.homeDirectory state
     path = Core.currentPath state
 
-renderDebug :: Env -> Core.State -> Buffer -> Buffer
-renderDebug env state buffer
-  = printString (20, 30) (mempty, mempty) (show width) buffer
-  where
-    (width, _)
-      = windowSize env
-
-    index
-      = Core.currentIndex state
-
 renderBuffer :: Buffer -> (Int, Int) -> IO ()
 renderBuffer buffer (offsetX, offsetY)
   = for_ (Map.toList buffer) $ \((x, y), cell) ->
@@ -164,19 +154,19 @@ renderBuffer buffer (offsetX, offsetY)
 
 alterBuffer :: Point -> Termbox.Cell -> Buffer -> Buffer
 alterBuffer point (Termbox.Cell c fg bg)
-  = Map.alter modify point
+  = Map.alter go point
   where
-    modify (Just (Termbox.Cell _ fg' bg'))
+    go (Just (Termbox.Cell _ fg' bg'))
       = Just $ Termbox.Cell c (fg <> fg') (bg <> bg')
 
-    modify Nothing
+    go Nothing
       = Just $ Termbox.Cell c fg bg
 
-cell
+buildCell
   :: Char
   -> (Termbox.Attr, Termbox.Attr)
   -> Termbox.Cell
-cell c (fg, bg)
+buildCell c (fg, bg)
   = Termbox.Cell c fg bg
 
 enum :: [a] -> [(Int, a)]
@@ -194,7 +184,7 @@ printString point@(col, row) style value buffer
         buffer
       x : xs ->
         printString (col + 1, row) style xs
-        $ alterBuffer point (cell x style) buffer
+        $ alterBuffer point (buildCell x style) buffer
 
 fileStyle :: Core.File -> (Termbox.Attr, Termbox.Attr)
 fileStyle file
@@ -225,4 +215,4 @@ determineOffset (_, height) state
       = Core.currentIndex state
 
     threshold
-      = round (0.75 * fromIntegral height)
+      = round (0.75 * fromIntegral height :: Double)
