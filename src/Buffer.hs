@@ -82,6 +82,12 @@ handleEvent ev
       Termbox.EventKey Termbox.KeyArrowUp _ ->
         AppCmd Core.JumpPrev
 
+      Termbox.EventKey Termbox.KeyCtrlD _ ->
+        AppCmd (Core.JumpMany 17)
+
+      Termbox.EventKey Termbox.KeyCtrlU _ ->
+        AppCmd (Core.JumpMany $ -17)
+
       _ ->
         UnrecognizedInput ev
 

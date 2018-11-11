@@ -36,6 +36,7 @@ data File
 data Cmd
   = JumpNext
   | JumpPrev
+  | JumpMany Int
   | JumpParentFolder
   | JumpHomeDirectory
   | SelectCurrentFile
@@ -65,6 +66,16 @@ update state = \case
         running $ state { files = newFiles }
       Nothing ->
         running state
+
+  JumpMany n ->
+    case PointedList.moveN jump filesList of
+      Just newFiles ->
+        running $ state { files = newFiles }
+      Nothing ->
+        running state
+    where
+      filesList = files state
+      jump = findSensibleJump filesList n
 
   JumpParentFolder -> do
     newState <- switchFolder state (currentPath state </> "..")
@@ -154,3 +165,16 @@ fileDisplayName file
         NormalFile        -> ""
         Folder            -> "/"
         SymbolicLink link -> " -> " <> link
+
+-- When using ctrl-d or ctrl-f the jump can be
+-- greater than how many items are actually in
+-- there. So it must be capped at at most the
+-- number of items, depending on the direction
+findSensibleJump :: FilesList -> Int -> Int
+findSensibleJump filesList n
+  = if n > 0
+      then min n nextLen
+      else max n $ prevLen * (-1)
+  where
+    nextLen = length (PointedList._suffix filesList)
+    prevLen = length (PointedList._reversedPrefix filesList)
