@@ -64,21 +64,14 @@ update state = \case
         running state
 
   JumpParentFolder -> do
-    let parent = currentFullPath </> ".."
-    newFiles <- scanAndSortFolder parent
-    running $ state
-                { files = newFiles
-                , currentPath = parent
-                }
+    newState <- switchFolder state (currentFullPath </> "..")
+    running newState
 
   SelectCurrentFile -> do
     case fileType current of
       Folder -> do
-        newFiles <- scanAndSortFolder currentFullPath
-        running $ state
-                    { files = newFiles
-                    , currentPath = currentFullPath
-                    }
+        newState <- switchFolder state currentFullPath
+        running newState
 
       NormalFile -> do
         canonical <- resolvePath currentFullPath
@@ -105,11 +98,21 @@ scanAndSortFolder path = do
 
 newStateFromFolder :: FileSystem m => FilePath -> m State
 newStateFromFolder path = do
-  files <- scanAndSortFolder path
+  canonical <- resolvePath path
+  files <- scanAndSortFolder canonical
   pure State
         { files        = files
-        , currentPath  = path
-        , originalPath = path
+        , currentPath  = canonical
+        , originalPath = canonical
+        }
+
+switchFolder :: FileSystem m => State -> FilePath -> m State
+switchFolder state path = do
+  canonical <- resolvePath path
+  newFiles  <- scanAndSortFolder canonical
+  pure state
+        { files       = newFiles
+        , currentPath = canonical
         }
 
 sortFiles :: FilesList -> FilesList
