@@ -46,7 +46,11 @@ render state = do
         & renderTree env state
         -- & renderDebug env state
 
-  renderBuffer buffer (2, 1)
+      folderInfo
+        = drawFolderInfo env state mempty
+
+  renderBuffer folderInfo (2, 1)
+  renderBuffer buffer (2, 2)
 
   Termbox.flush
 
@@ -110,6 +114,14 @@ drawCursor env state buffer
           (col, cursorRow)
           (Termbox.Cell ' ' Termbox.underline mempty)
 
+drawFolderInfo :: Env -> Core.State -> Buffer -> Buffer
+drawFolderInfo env state buffer
+  = printString
+      (0, 0)
+      (Termbox.green <> Termbox.bold, mempty)
+      (Core.currentPath state)
+      buffer
+
 renderDebug :: Env -> Core.State -> Buffer -> Buffer
 renderDebug env state buffer
   = printString (20, 30) (mempty, mempty) (show width) buffer
@@ -164,7 +176,7 @@ fileStyle file
   = case Core.fileType file of
       Core.NormalFile      -> (mempty, mempty)
       Core.SymbolicLink _  -> (Termbox.magenta, mempty)
-      Core.Folder          -> (Termbox.cyan <> Termbox.bold, mempty)
+      Core.Folder          -> (Termbox.blue <> Termbox.bold, mempty)
 
 cursorPosition :: Env -> Core.State -> Int
 cursorPosition env state
