@@ -13,9 +13,10 @@ type FilesList
 
 data State
   = State
-      { files        :: FilesList
-      , currentPath  :: FilePath
-      , originalPath :: FilePath
+      { files         :: FilesList
+      , currentPath   :: FilePath
+      , originalPath  :: FilePath
+      , homeDirectory :: FilePath
       }
   deriving (Show)
 
@@ -46,6 +47,7 @@ data UpdateResult
 class Monad m => FileSystem m where
   scanDirectory :: FilePath -> m FilesList
   resolvePath   :: FilePath -> m FilePath
+  homeDirectoryPath :: m FilePath
 
 update :: (FileSystem m) => State -> Cmd -> m UpdateResult
 update state = \case
@@ -100,10 +102,13 @@ newStateFromFolder :: FileSystem m => FilePath -> m State
 newStateFromFolder path = do
   canonical <- resolvePath path
   files <- scanAndSortFolder canonical
+  home <- homeDirectoryPath
+
   pure State
-        { files        = files
-        , currentPath  = canonical
-        , originalPath = canonical
+        { files         = files
+        , currentPath   = canonical
+        , originalPath  = canonical
+        , homeDirectory = home
         }
 
 switchFolder :: FileSystem m => State -> FilePath -> m State

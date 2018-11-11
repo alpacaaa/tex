@@ -2,6 +2,7 @@ module Buffer where
 
 import           Relude
 
+import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Termbox
 
@@ -119,8 +120,17 @@ drawFolderInfo env state buffer
   = printString
       (0, 0)
       (Termbox.green <> Termbox.bold, mempty)
-      (Core.currentPath state)
+      homeStripped
       buffer
+  where
+    -- a bit brutal
+    homeStripped
+      = case List.stripPrefix home path of
+          Just suffix -> "~" <> suffix
+          Nothing     -> path
+
+    home = Core.homeDirectory state
+    path = Core.currentPath state
 
 renderDebug :: Env -> Core.State -> Buffer -> Buffer
 renderDebug env state buffer

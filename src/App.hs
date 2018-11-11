@@ -34,6 +34,9 @@ instance Core.FileSystem App where
   resolvePath
     = liftIO . Directory.canonicalizePath
 
+  homeDirectoryPath
+    = liftIO Directory.getHomeDirectory
+
 getFileType :: FilePath -> IO Core.FileType
 getFileType path = do
   status <- Files.getSymbolicLinkStatus path
