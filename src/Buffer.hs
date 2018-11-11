@@ -72,6 +72,7 @@ handleEvent ev
           'j' -> AppCmd Core.JumpNext
           'k' -> AppCmd Core.JumpPrev
           '-' -> AppCmd Core.JumpParentFolder
+          '~' -> AppCmd Core.JumpHomeDirectory
           'q' -> Quit
           _   -> UnrecognizedInput ev
 

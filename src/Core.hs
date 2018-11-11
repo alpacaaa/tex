@@ -37,6 +37,7 @@ data Cmd
   = JumpNext
   | JumpPrev
   | JumpParentFolder
+  | JumpHomeDirectory
   | SelectCurrentFile
   deriving (Show)
 
@@ -66,7 +67,11 @@ update state = \case
         running state
 
   JumpParentFolder -> do
-    newState <- switchFolder state (currentFullPath </> "..")
+    newState <- switchFolder state (currentPath state </> "..")
+    running newState
+
+  JumpHomeDirectory -> do
+    newState <- switchFolder state (homeDirectory state)
     running newState
 
   SelectCurrentFile -> do
