@@ -56,25 +56,13 @@ class Monad m => FileSystem m where
 update :: (FileSystem m) => State -> Cmd -> m UpdateResult
 update state = \case
   JumpNext ->
-    case PointedList.next (files state) of
-      Just newFiles ->
-        running $ state { files = newFiles }
-      Nothing ->
-        running state
+    tryNewFiles $ PointedList.next (files state)
 
   JumpPrev ->
-    case PointedList.previous (files state) of
-      Just newFiles ->
-        running $ state { files = newFiles }
-      Nothing ->
-        running state
+    tryNewFiles $ PointedList.previous (files state)
 
   JumpMany n ->
-    case PointedList.moveN jump filesList of
-      Just newFiles ->
-        running $ state { files = newFiles }
-      Nothing ->
-        running state
+    tryNewFiles $ PointedList.moveN jump filesList
     where
       filesList = files state
       jump = findSensibleJump filesList n
@@ -88,18 +76,10 @@ update state = \case
     running newState
 
   JumpBeginning -> do
-    case PointedList.moveTo 0 (files state) of
-      Just newFiles ->
-        running $ state { files = newFiles }
-      Nothing ->
-        running state
+    tryNewFiles $ PointedList.moveTo 0 (files state)
 
   JumpEnd -> do
-    case PointedList.moveTo end filesList of
-      Just newFiles ->
-        running $ state { files = newFiles }
-      Nothing ->
-        running state
+    tryNewFiles $ PointedList.moveTo end filesList
     where
       filesList = files state
       end = (PointedList.length filesList) - 1
@@ -127,6 +107,12 @@ update state = \case
 
     currentFullPath
       = currentPath state </> filePath current
+
+    tryNewFiles = \case
+      Just newFiles ->
+        running $ state { files = newFiles }
+      Nothing ->
+        running state
 
 scanAndSortFolder :: FileSystem m => FilePath -> m FilesList
 scanAndSortFolder path = do
