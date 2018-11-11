@@ -129,6 +129,6 @@ fileDisplayName :: File -> String
 fileDisplayName file
   = filePath file
     <> case fileType file of
-        Folder            -> ""
         NormalFile        -> ""
+        Folder            -> "/"
         SymbolicLink link -> " -> " <> link

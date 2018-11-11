@@ -95,7 +95,7 @@ renderTree env state buffer
 
 drawCursor :: Env -> Core.State -> Buffer -> Buffer
 drawCursor env state buffer
-  = foldr go buffer [1..width]
+  = foldr go buffer [0..width]
   where
     cursorRow
       = cursorPosition env state
@@ -161,8 +161,8 @@ fileStyle :: Core.File -> (Termbox.Attr, Termbox.Attr)
 fileStyle file
   = case Core.fileType file of
       Core.NormalFile      -> (mempty, mempty)
-      Core.Folder          -> (Termbox.cyan, mempty)
       Core.SymbolicLink _  -> (Termbox.magenta, mempty)
+      Core.Folder          -> (Termbox.cyan <> Termbox.bold, mempty)
 
 cursorPosition :: Env -> Core.State -> Int
 cursorPosition env state
