@@ -66,6 +66,8 @@ handleEvent ev
         case key of
           'j' -> AppCmd Core.JumpNext
           'k' -> AppCmd Core.JumpPrev
+          '-' -> AppCmd Core.JumpParentFolder
+          'q' -> Quit
           _   -> UnrecognizedInput ev
 
       Termbox.EventKey Termbox.KeyArrowDown _ ->

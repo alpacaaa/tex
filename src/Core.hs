@@ -35,6 +35,7 @@ data File
 data Cmd
   = JumpNext
   | JumpPrev
+  | JumpParentFolder
   | SelectCurrentFile
   deriving (Show)
 
@@ -61,6 +62,14 @@ update state = \case
         running $ state { files = newFiles }
       Nothing ->
         running state
+
+  JumpParentFolder -> do
+    let parent = currentFullPath </> ".."
+    newFiles <- scanAndSortFolder parent
+    running $ state
+                { files = newFiles
+                , currentPath = parent
+                }
 
   SelectCurrentFile -> do
     case fileType current of
