@@ -24,12 +24,9 @@ dependencies:
 - containers
 - directory
 - filepath
-- generic-lens
-- lens
 - pointedlist
 - relude
 - termbox
-- text
 - unix
 
 library:
