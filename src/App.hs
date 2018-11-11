@@ -9,7 +9,7 @@ import qualified System.Directory as Directory
 import qualified System.Posix.Files as Files
 
 import qualified Core
-import qualified Buffer
+import qualified CLI
 
 
 newtype App a
@@ -55,7 +55,7 @@ getFileType path = do
 main :: IO ()
 main = do
   result <-
-    Buffer.run $ runApp $ do
+    CLI.run $ runApp $ do
       state <- Core.newStateFromFolder "."
       loop state
 
@@ -65,16 +65,16 @@ main = do
 
 loop :: Core.State -> App (Maybe FilePath)
 loop state = do
-  event <- liftIO $ Buffer.render state
+  event <- liftIO $ CLI.render state
 
   case event of
-    Buffer.Quit ->
+    CLI.Quit ->
       pure Nothing
 
-    Buffer.UnrecognizedInput _ ->
+    CLI.UnrecognizedInput _ ->
       loop state
 
-    Buffer.AppCmd cmd -> do
+    CLI.AppCmd cmd -> do
       result <- Core.update state cmd
       case result of
         Core.Running newState ->

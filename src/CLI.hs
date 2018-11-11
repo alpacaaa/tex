@@ -1,4 +1,4 @@
-module Buffer where
+module CLI where
 
 import           Relude hiding (state)
 
