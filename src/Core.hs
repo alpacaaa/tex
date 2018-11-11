@@ -39,6 +39,8 @@ data Cmd
   | JumpMany Int
   | JumpParentFolder
   | JumpHomeDirectory
+  | JumpBeginning
+  | JumpEnd
   | SelectCurrentFile
   deriving (Show)
 
@@ -84,6 +86,23 @@ update state = \case
   JumpHomeDirectory -> do
     newState <- switchFolder state (homeDirectory state)
     running newState
+
+  JumpBeginning -> do
+    case PointedList.moveTo 0 (files state) of
+      Just newFiles ->
+        running $ state { files = newFiles }
+      Nothing ->
+        running state
+
+  JumpEnd -> do
+    case PointedList.moveTo end filesList of
+      Just newFiles ->
+        running $ state { files = newFiles }
+      Nothing ->
+        running state
+    where
+      filesList = files state
+      end = (PointedList.length filesList) - 1
 
   SelectCurrentFile -> do
     case fileType current of
