@@ -3,6 +3,7 @@ module Core where
 import           Relude hiding (State, state)
 import           System.FilePath.Posix ((</>))
 
+import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.List.PointedList as PointedList
 
@@ -16,6 +17,8 @@ data State
       , currentPath   :: FilePath
       , originalPath  :: FilePath
       , homeDirectory :: FilePath
+      , currentMode   :: Mode
+      , searchPattern :: SearchPattern
       }
   deriving (Show)
 
@@ -32,6 +35,15 @@ data File
       }
   deriving (Show, Eq)
 
+newtype SearchPattern
+  = SearchPattern String
+  deriving (Show, Eq)
+
+data Mode
+  = ModeNavigation
+  | ModeSearch
+  deriving (Show, Eq)
+
 data Cmd
   = JumpNext
   | JumpPrev
@@ -41,6 +53,9 @@ data Cmd
   | JumpBeginning
   | JumpEnd
   | SelectCurrentFile
+  | SwitchMode Mode
+  | UpdateSearch SearchPattern
+  | CommitSearch
   deriving (Show)
 
 data UpdateResult
@@ -97,6 +112,23 @@ update state = \case
         canonical <- resolvePath currentFullPath
         pure $ FileSelected canonical
 
+  SwitchMode mode ->
+    running $ state { currentMode = mode }
+
+  UpdateSearch search ->
+    running $ state { searchPattern = search }
+
+  CommitSearch ->
+    running
+      $ state { currentMode = ModeNavigation
+              , files       = updated
+              }
+    where
+      search
+        = searchPattern state
+      updated
+        = selectNextSearchMatch search (files state)
+
   where
     running newState
       = pure (Running newState)
@@ -129,6 +161,8 @@ newStateFromFolder path = do
         , currentPath   = canonical
         , originalPath  = canonical
         , homeDirectory = home
+        , currentMode   = ModeNavigation
+        , searchPattern = SearchPattern ""
         }
 
 switchFolder :: FileSystem m => State -> FilePath -> m State
@@ -184,3 +218,35 @@ findSensibleJump filesList n
   where
     nextLen = length (PointedList._suffix filesList)
     prevLen = length (PointedList._reversedPrefix filesList)
+
+-- Put the focus on the next element after the
+-- focused one that matches the search pattern
+selectNextSearchMatch
+  :: SearchPattern
+  -> FilesList
+  -> FilesList
+selectNextSearchMatch search filesList
+  = fromMaybe filesList result
+  where
+    result = do
+      index <- findInSuffix <|> findInPrefix
+      PointedList.moveN (index + 1) filesList
+
+    lookup
+      = List.findIndex
+      $ \file -> matchPattern search (filePath file)
+
+    findInSuffix
+      = lookup (PointedList._suffix filesList)
+
+    findInPrefix
+      =   (\index -> index * (-1))
+      <$> lookup (PointedList._reversedPrefix filesList)
+
+-- TODO this is clearly very naive, we probably
+-- want regular expressions here
+matchPattern :: SearchPattern -> FilePath -> Bool
+matchPattern (SearchPattern search) path
+  = List.isInfixOf (toLower search) (toLower path)
+  where
+    toLower = map Char.toLower

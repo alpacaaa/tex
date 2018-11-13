@@ -56,10 +56,15 @@ render state = do
   Termbox.flush
 
   event <- Termbox.poll
-  pure (handleEvent event)
+  case Core.currentMode state of
+    Core.ModeNavigation ->
+      pure (handleNavigationEvent event)
+    Core.ModeSearch ->
+      let searchPattern = Core.searchPattern state
+      in  pure (handleSearchEvent searchPattern event)
 
-handleEvent :: Termbox.Event -> Event
-handleEvent ev
+handleNavigationEvent :: Termbox.Event -> Event
+handleNavigationEvent ev
   = case ev of
       Termbox.EventKey Termbox.KeyCtrlC _ ->
         Quit
@@ -75,6 +80,7 @@ handleEvent ev
           '~' -> AppCmd Core.JumpHomeDirectory
           'g' -> AppCmd Core.JumpBeginning
           'G' -> AppCmd Core.JumpEnd
+          '/' -> AppCmd $ Core.SwitchMode Core.ModeSearch
           'q' -> Quit
           _   -> UnrecognizedInput ev
 
@@ -95,6 +101,26 @@ handleEvent ev
 
       Termbox.EventKey Termbox.KeyCtrlB _ ->
         AppCmd (Core.JumpMany $ -34)
+
+      _ ->
+        UnrecognizedInput ev
+
+handleSearchEvent :: Core.SearchPattern -> Termbox.Event -> Event
+handleSearchEvent (Core.SearchPattern searchPattern) ev
+  = case ev of
+      Termbox.EventKey Termbox.KeyCtrlC _ ->
+        AppCmd $ Core.SwitchMode Core.ModeNavigation
+
+      Termbox.EventKey Termbox.KeyEsc _ ->
+        AppCmd $ Core.SwitchMode Core.ModeNavigation
+
+      Termbox.EventKey Termbox.KeyEnter _ ->
+        AppCmd Core.CommitSearch
+
+      Termbox.EventKey (Termbox.KeyChar key) _  ->
+        AppCmd
+          $ Core.UpdateSearch
+          $ Core.SearchPattern (searchPattern <> [key])
 
       _ ->
         UnrecognizedInput ev
