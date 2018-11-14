@@ -55,6 +55,7 @@ data Cmd
   | SelectCurrentFile
   | SwitchMode Mode
   | UpdateSearch SearchPattern
+  | SearchNextMatch
   | CommitSearch
   deriving (Show)
 
@@ -120,14 +121,11 @@ update state = \case
 
   CommitSearch ->
     running
-      $ state { currentMode = ModeNavigation
-              , files       = updated
-              }
-    where
-      search
-        = searchPattern state
-      updated
-        = selectNextSearchMatch search (files state)
+      $ searchForward
+      $ state { currentMode = ModeNavigation }
+
+  SearchNextMatch ->
+    running $ searchForward state
 
   where
     running newState
@@ -271,3 +269,12 @@ moveFocus predicate list
 
     prefix
       = List.reverse $ PointedList._reversedPrefix list
+
+searchForward :: State -> State
+searchForward state
+  = state { files = updated }
+  where
+    search
+      = searchPattern state
+    updated
+      = selectNextSearchMatch search (files state)

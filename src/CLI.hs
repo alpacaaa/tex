@@ -81,6 +81,7 @@ handleNavigationEvent ev
           'g' -> AppCmd Core.JumpBeginning
           'G' -> AppCmd Core.JumpEnd
           '/' -> AppCmd $ Core.SwitchMode Core.ModeSearch
+          'n' -> AppCmd Core.SearchNextMatch
           'q' -> Quit
           _   -> UnrecognizedInput ev
 
