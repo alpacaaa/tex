@@ -121,11 +121,11 @@ update state = \case
 
   CommitSearch ->
     running
-      $ searchForward
+      $ selectNextSearchMatch Forward
       $ state { currentMode = ModeNavigation }
 
   SearchNextMatch ->
-    running $ searchForward state
+    running $ selectNextSearchMatch Forward state
 
   where
     running newState
@@ -217,18 +217,6 @@ findSensibleJump filesList n
     nextLen = length (PointedList._suffix filesList)
     prevLen = length (PointedList._reversedPrefix filesList)
 
--- Put the focus on the next element after the
--- focused one that matches the search pattern
-selectNextSearchMatch
-  :: SearchPattern
-  -> FilesList
-  -> FilesList
-selectNextSearchMatch search filesList
-  = moveFocus match filesList
-  where
-    match file
-      = matchPattern search (filePath file)
-
 -- TODO this is clearly very naive, we probably
 -- want regular expressions here
 matchPattern :: SearchPattern -> FilePath -> Bool
@@ -237,15 +225,21 @@ matchPattern (SearchPattern search) path
   where
     toLower = map Char.toLower
 
+data Movement
+  = Forward
+  | Backward
+  deriving (Show, Eq)
+
 -- | Given a PointedList and a predicate, returns a
 -- | modified PointedList where the focus is on the
 -- | first element that matches the predicate. Loop
 -- | starts at current focus.
 moveFocus
   :: (a -> Bool)
+  -> Movement
   -> PointedList.PointedList a
   -> PointedList.PointedList a
-moveFocus predicate list
+moveFocus predicate movement list
   = fromMaybe list
   $ case foundIndex of
       Just index ->
@@ -259,7 +253,7 @@ moveFocus predicate list
 
   where
     foundIndex
-      = List.findIndex predicate (suffix <> prefix)
+      = List.findIndex predicate targetList
 
     suffix
       = PointedList._suffix list
@@ -268,13 +262,27 @@ moveFocus predicate list
       = List.length suffix
 
     prefix
-      = List.reverse $ PointedList._reversedPrefix list
+      = PointedList._reversedPrefix list
 
-searchForward :: State -> State
-searchForward state
+    targetList
+      = case movement of
+          Forward  -> suffix <> List.reverse prefix
+          Backward -> prefix <> suffix
+
+selectNextSearchMatch :: Movement -> State -> State
+selectNextSearchMatch movement state
   = state { files = updated }
   where
-    search
-      = searchPattern state
     updated
-      = selectNextSearchMatch search (files state)
+      = searchNext movement (searchPattern state) (files state)
+
+searchNext
+  :: Movement
+  -> SearchPattern
+  -> FilesList
+  -> FilesList
+searchNext movement search filesList
+  = moveFocus match movement filesList
+  where
+    match file
+      = matchPattern search (filePath file)

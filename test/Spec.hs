@@ -20,34 +20,39 @@ main = hspec $ do
                 ]
 
       searchAndAssert
-        files
+        Core.Forward
         (IndexFocus 0)
         (Core.SearchPattern "k")
         (ExpectedPath "kitten")
+        files
 
       searchAndAssert
-        files
+        Core.Forward
         (IndexFocus 2)
         (Core.SearchPattern "an")
         (ExpectedPath "elephant")
+        files
 
       searchAndAssert
-        files
+        Core.Forward
         (IndexFocus 4)
         (Core.SearchPattern "an")
         (ExpectedPath "kangaroo")
+        files
 
       searchAndAssert
-        files
+        Core.Forward
         (IndexFocus 4)
         (Core.SearchPattern "GARO")
         (ExpectedPath "kangaroo")
+        files
 
       searchAndAssert
-        files
+        Core.Forward
         (IndexFocus 3)
         (Core.SearchPattern "pand")
         (ExpectedPath "panda")
+        files
 
 dummyFile :: FilePath -> Core.File
 dummyFile path
@@ -57,12 +62,13 @@ newtype IndexFocus = IndexFocus Int
 newtype ExpectedPath = ExpectedPath FilePath
 
 searchAndAssert
-  :: Core.FilesList
+  :: Core.Movement
   -> IndexFocus
   -> Core.SearchPattern
   -> ExpectedPath
+  -> Core.FilesList
   -> IO ()
-searchAndAssert files (IndexFocus index) search (ExpectedPath expected)
+searchAndAssert movement (IndexFocus index) search (ExpectedPath expected) files
   = foundPath `shouldBe` expected
   where
     foundPath
@@ -72,4 +78,4 @@ searchAndAssert files (IndexFocus index) search (ExpectedPath expected)
       = PointedList.moveTo index files
 
     result
-      = Core.selectNextSearchMatch search newFiles
+      = Core.searchNext movement search newFiles
