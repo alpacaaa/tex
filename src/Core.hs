@@ -243,11 +243,9 @@ moveFocus predicate movement list
   = fromMaybe list
   $ case foundIndex of
       Just index ->
-        if index >= suffixLen
-          then let move = index - suffixLen
-               in PointedList.moveTo move list
-          else
-            PointedList.moveN (index + 1) list
+        case movement of
+          Forward  -> doForward index
+          Backward -> doBackward index
       Nothing ->
         Nothing
 
@@ -264,10 +262,27 @@ moveFocus predicate movement list
     prefix
       = PointedList._reversedPrefix list
 
+    prefixLen
+      = List.length prefix
+
     targetList
       = case movement of
           Forward  -> suffix <> List.reverse prefix
-          Backward -> prefix <> suffix
+          Backward -> prefix <> List.reverse suffix
+
+    doForward index
+      = if index >= suffixLen
+          then let move = index - suffixLen
+               in PointedList.moveTo move list
+          else
+            PointedList.moveN (index + 1) list
+
+    doBackward index
+      = if index >= prefixLen
+          then let move = prefixLen + 1 + (suffixLen - index)
+               in PointedList.moveTo move list
+          else
+            PointedList.moveN ((index + 1) * (-1)) list
 
 selectNextSearchMatch :: Movement -> State -> State
 selectNextSearchMatch movement state

@@ -9,15 +9,17 @@ import qualified Core
 main :: IO ()
 main = hspec $ do
   describe "Search" $ do
+
+    let Just files
+          = PointedList.fromList
+              [ dummyFile "kangaroo"
+              , dummyFile "panda"
+              , dummyFile "giraffe"
+              , dummyFile "elephant"
+              , dummyFile "kitten"
+              ]
+
     it "forward search" $ do
-      let Just files
-            = PointedList.fromList
-                [ dummyFile "kangaroo"
-                , dummyFile "panda"
-                , dummyFile "giraffe"
-                , dummyFile "elephant"
-                , dummyFile "kitten"
-                ]
 
       searchAndAssert
         Core.Forward
@@ -52,6 +54,43 @@ main = hspec $ do
         (IndexFocus 3)
         (Core.SearchPattern "pand")
         (ExpectedPath "panda")
+        files
+
+    it "backward search" $ do
+
+      searchAndAssert
+        Core.Backward
+        (IndexFocus 0)
+        (Core.SearchPattern "k")
+        (ExpectedPath "kitten")
+        files
+
+      searchAndAssert
+        Core.Backward
+        (IndexFocus 2)
+        (Core.SearchPattern "anga")
+        (ExpectedPath "kangaroo")
+        files
+
+      searchAndAssert
+        Core.Backward
+        (IndexFocus 4)
+        (Core.SearchPattern "PAND")
+        (ExpectedPath "panda")
+        files
+
+      searchAndAssert
+        Core.Backward
+        (IndexFocus 2)
+        (Core.SearchPattern "ten")
+        (ExpectedPath "kitten")
+        files
+
+      searchAndAssert
+        Core.Backward
+        (IndexFocus 1)
+        (Core.SearchPattern "gira")
+        (ExpectedPath "giraffe")
         files
 
 dummyFile :: FilePath -> Core.File
