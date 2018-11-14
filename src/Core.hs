@@ -226,22 +226,10 @@ selectNextSearchMatch
   -> FilesList
   -> FilesList
 selectNextSearchMatch search filesList
-  = fromMaybe filesList result
+  = moveFocus match filesList
   where
-    result = do
-      index <- findInSuffix <|> findInPrefix
-      PointedList.moveN (index + 1) filesList
-
-    lookup
-      = List.findIndex
-      $ \file -> matchPattern search (filePath file)
-
-    findInSuffix
-      = lookup (PointedList._suffix filesList)
-
-    findInPrefix
-      =   (\index -> index * (-1))
-      <$> lookup (PointedList._reversedPrefix filesList)
+    match file
+      = matchPattern search (filePath file)
 
 -- TODO this is clearly very naive, we probably
 -- want regular expressions here
@@ -250,3 +238,36 @@ matchPattern (SearchPattern search) path
   = List.isInfixOf (toLower search) (toLower path)
   where
     toLower = map Char.toLower
+
+-- | Given a PointedList and a predicate, returns a
+-- | modified PointedList where the focus is on the
+-- | first element that matches the predicate. Loop
+-- | starts at current focus.
+moveFocus
+  :: (a -> Bool)
+  -> PointedList.PointedList a
+  -> PointedList.PointedList a
+moveFocus predicate list
+  = fromMaybe list
+  $ case foundIndex of
+      Just index ->
+        if index >= suffixLen
+          then let move = index - suffixLen
+               in PointedList.moveTo move list
+          else
+            PointedList.moveN (index + 1) list
+      Nothing ->
+        Nothing
+
+  where
+    foundIndex
+      = List.findIndex predicate (suffix <> prefix)
+
+    suffix
+      = PointedList._suffix list
+
+    suffixLen
+      = List.length suffix
+
+    prefix
+      = List.reverse $ PointedList._reversedPrefix list

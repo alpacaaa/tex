@@ -1,52 +1,75 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 import Relude
+import Test.Hspec
 
 import qualified Data.List.PointedList as PointedList
 
 import qualified Core
 
 main :: IO ()
-main = do
-  searchTests
+main = hspec $ do
+  describe "Search" $ do
+    it "forward search" $ do
+      let Just files
+            = PointedList.fromList
+                [ dummyFile "kangaroo"
+                , dummyFile "panda"
+                , dummyFile "giraffe"
+                , dummyFile "elephant"
+                , dummyFile "kitten"
+                ]
 
--- TODO use a proper framework :P
-searchTests :: IO ()
-searchTests = do
-  let Just files
-        = PointedList.fromList
-            [ dummyFile "kangaroo"
-            , dummyFile "panda"
-            , dummyFile "giraffe"
-            , dummyFile "elephant"
-            , dummyFile "kitten"
-            ]
+      searchAndAssert
+        files
+        (IndexFocus 0)
+        (Core.SearchPattern "k")
+        (ExpectedPath "kitten")
 
-  searchAndAssert files 0 "k" 5
-  putTextLn (show files)
-  putTextLn "yo"
+      searchAndAssert
+        files
+        (IndexFocus 2)
+        (Core.SearchPattern "an")
+        (ExpectedPath "elephant")
+
+      searchAndAssert
+        files
+        (IndexFocus 4)
+        (Core.SearchPattern "an")
+        (ExpectedPath "kangaroo")
+
+      searchAndAssert
+        files
+        (IndexFocus 4)
+        (Core.SearchPattern "GARO")
+        (ExpectedPath "kangaroo")
+
+      searchAndAssert
+        files
+        (IndexFocus 3)
+        (Core.SearchPattern "pand")
+        (ExpectedPath "panda")
 
 dummyFile :: FilePath -> Core.File
 dummyFile path
   = Core.File path Core.NormalFile
 
-newtype IndexFocus = IndexFocus Int deriving Num
-newtype ExpectedFocus = ExpectedFocus Int deriving Num
+newtype IndexFocus = IndexFocus Int
+newtype ExpectedPath = ExpectedPath FilePath
 
 searchAndAssert
   :: Core.FilesList
   -> IndexFocus
-  -> String
-  -> ExpectedFocus
+  -> Core.SearchPattern
+  -> ExpectedPath
   -> IO ()
-searchAndAssert files (IndexFocus index) search (ExpectedFocus expected)
-  = if PointedList.index result == expected
-      then pure ()
-      else error "Failed blah"
+searchAndAssert files (IndexFocus index) search (ExpectedPath expected)
+  = foundPath `shouldBe` expected
   where
+    foundPath
+      = Core.filePath $ PointedList._focus result
+
     Just newFiles
       = PointedList.moveTo index files
 
     result
-      = Core.selectNextSearchMatch
-          (Core.SearchPattern search)
-          newFiles
+      = Core.selectNextSearchMatch search newFiles
