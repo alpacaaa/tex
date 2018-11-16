@@ -5,6 +5,7 @@ import Test.Hspec
 import qualified Data.List.PointedList as PointedList
 
 import qualified Core
+import qualified App
 
 main :: IO ()
 main = hspec $ do
@@ -92,6 +93,22 @@ main = hspec $ do
         (Core.SearchPattern "gira")
         (ExpectedPath "giraffe")
         files
+
+    describe "update" $ do
+        let Just fileList = PointedList.fromList
+                             [
+                                dummyFile "one"
+                              , dummyFile "two"
+                              , dummyFile "three"
+                             ]
+
+        let dummyState = Core.State fileList "." "." "." Core.ModeNavigation (Core.SearchPattern "")
+
+        it "JumpNext" $ do
+            Core.Running agg <- App.runApp $ Core.update dummyState Core.JumpNext
+            let result = PointedList._focus (Core.files agg)
+            result `shouldBe` dummyFile "two"
+
 
 dummyFile :: FilePath -> Core.File
 dummyFile path
