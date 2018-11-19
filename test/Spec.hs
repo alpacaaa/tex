@@ -102,12 +102,36 @@ main = hspec $ do
                               , dummyFile "three"
                              ]
 
-        let dummyState = Core.State fileList "." "." "." Core.ModeNavigation (Core.SearchPattern "")
+        let dummyState = Core.State fileList "/usr/bin" "/" "/home/user" Core.ModeNavigation (Core.SearchPattern "")
 
         it "JumpNext" $ do
             Core.Running agg <- App.runApp $ Core.update dummyState Core.JumpNext
             let result = PointedList._focus (Core.files agg)
             result `shouldBe` dummyFile "two"
+
+        it "JumpPrev" $ do
+            _ <- App.runApp $ Core.update dummyState Core.JumpNext
+            Core.Running agg <- App.runApp $ Core.update dummyState Core.JumpPrev
+
+            let result = PointedList._focus (Core.files agg)
+            result `shouldBe` dummyFile "one"
+
+        it "JumpMany" $ do
+            Core.Running agg <- App.runApp $ Core.update dummyState $ Core.JumpMany 2
+
+            let result = PointedList._focus (Core.files agg)
+            result `shouldBe` dummyFile "three"
+
+        it "JumpParentFolder" $ do
+            _ <- App.runApp $ Core.update dummyState Core.JumpParentFolder
+
+            Core.currentPath dummyState `shouldBe` "/usr"
+
+        it "JumpParentFolder" $ do
+            _ <- App.runApp $ Core.update dummyState Core.JumpHomeDirectory
+
+            Core.currentPath dummyState `shouldBe` "/home/user"
+
 
 
 dummyFile :: FilePath -> Core.File
