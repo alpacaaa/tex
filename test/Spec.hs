@@ -5,20 +5,36 @@ import Test.Hspec
 import qualified Data.List.PointedList as PointedList
 
 import qualified Core
-import qualified App
+
+newtype Dummy a = Dummy { runApp :: IO a }
+  deriving (Functor, Applicative, Monad, MonadIO)
+
+instance Core.FileSystem Dummy where
+    scanDirectory _ = pure files
+
+    resolvePath "/usr/bin.."  = pure "/usr"
+    resolvePath _             = pure "/etc"
+
+    homeDirectoryPath = pure "/home/user"
+
+files :: PointedList.PointedList Core.File
+files =
+        let
+            Just f =
+                   PointedList.fromList
+                    [ dummyFile "kangaroo"
+                    , dummyFile "panda"
+                    , dummyFile "giraffe"
+                    , dummyFile "elephant"
+                    , dummyFile "kitten"
+                    ]
+
+        in
+            f
 
 main :: IO ()
 main = hspec $ do
   describe "Search" $ do
-
-    let Just files
-          = PointedList.fromList
-              [ dummyFile "kangaroo"
-              , dummyFile "panda"
-              , dummyFile "giraffe"
-              , dummyFile "elephant"
-              , dummyFile "kitten"
-              ]
 
     it "forward search" $ do
 
@@ -105,30 +121,30 @@ main = hspec $ do
         let dummyState = Core.State fileList "/usr/bin" "/" "/home/user" Core.ModeNavigation (Core.SearchPattern "")
 
         it "JumpNext" $ do
-            Core.Running agg <- App.runApp $ Core.update dummyState Core.JumpNext
+            Core.Running agg <- runApp $ Core.update dummyState Core.JumpNext
             let result = PointedList._focus (Core.files agg)
             result `shouldBe` dummyFile "two"
 
         it "JumpPrev" $ do
-            _ <- App.runApp $ Core.update dummyState Core.JumpNext
-            Core.Running agg <- App.runApp $ Core.update dummyState Core.JumpPrev
+            _ <- runApp $ Core.update dummyState Core.JumpNext
+            Core.Running agg <- runApp $ Core.update dummyState Core.JumpPrev
 
             let result = PointedList._focus (Core.files agg)
             result `shouldBe` dummyFile "one"
 
         it "JumpMany" $ do
-            Core.Running agg <- App.runApp $ Core.update dummyState $ Core.JumpMany 2
+            Core.Running agg <- runApp $ Core.update dummyState $ Core.JumpMany 2
 
             let result = PointedList._focus (Core.files agg)
             result `shouldBe` dummyFile "three"
 
         it "JumpParentFolder" $ do
-            _ <- App.runApp $ Core.update dummyState Core.JumpParentFolder
+            _ <- runApp $ Core.update dummyState Core.JumpParentFolder
 
             Core.currentPath dummyState `shouldBe` "/usr"
 
-        it "JumpParentFolder" $ do
-            _ <- App.runApp $ Core.update dummyState Core.JumpHomeDirectory
+        it "JumpHomeFolder" $ do
+            _ <- runApp $ Core.update dummyState Core.JumpHomeDirectory
 
             Core.currentPath dummyState `shouldBe` "/home/user"
 
@@ -148,14 +164,14 @@ searchAndAssert
   -> ExpectedPath
   -> Core.FilesList
   -> IO ()
-searchAndAssert movement (IndexFocus index) search (ExpectedPath expected) files
+searchAndAssert movement (IndexFocus index) search (ExpectedPath expected) fileList
   = foundPath `shouldBe` expected
   where
     foundPath
       = Core.filePath $ PointedList._focus result
 
     Just newFiles
-      = PointedList.moveTo index files
+      = PointedList.moveTo index fileList
 
     result
       = Core.searchNext movement search newFiles
