@@ -12,8 +12,8 @@ newtype Dummy a = Dummy { runApp :: IO a }
 instance Core.FileSystem Dummy where
     scanDirectory _ = pure files
 
-    resolvePath "/usr/bin.."  = pure "/usr"
-    resolvePath _             = pure "/etc"
+    resolvePath "/usr/bin/.."  = pure "/usr"
+    resolvePath a              = pure a
 
     homeDirectoryPath = pure "/home/user"
 
@@ -111,32 +111,32 @@ main = hspec $ do
         files
 
     describe "update" $ do
-        let Just fileList = PointedList.fromList
-                             [
-                                dummyFile "one"
-                              , dummyFile "two"
-                              , dummyFile "three"
-                             ]
-
-        let dummyState = Core.State fileList "/usr/bin" "/" "/home/user" Core.ModeNavigation (Core.SearchPattern "")
+        let dummyState = Core.State
+                         { Core.files = files
+                           , Core.currentPath = "/usr/bin/"
+                           , Core.originalPath = "/"
+                           , Core.homeDirectory = "/home/user"
+                           , Core.currentMode = Core.ModeNavigation
+                           , Core.searchPattern = Core.SearchPattern ""
+                         }
 
         it "JumpNext" $ do
             Core.Running agg <- runApp $ Core.update dummyState Core.JumpNext
             let result = PointedList._focus (Core.files agg)
-            result `shouldBe` dummyFile "two"
+            result `shouldBe` dummyFile "panda"
 
         it "JumpPrev" $ do
             _ <- runApp $ Core.update dummyState Core.JumpNext
             Core.Running agg <- runApp $ Core.update dummyState Core.JumpPrev
 
             let result = PointedList._focus (Core.files agg)
-            result `shouldBe` dummyFile "one"
+            result `shouldBe` dummyFile "kangaroo"
 
         it "JumpMany" $ do
             Core.Running agg <- runApp $ Core.update dummyState $ Core.JumpMany 2
 
             let result = PointedList._focus (Core.files agg)
-            result `shouldBe` dummyFile "three"
+            result `shouldBe` dummyFile "giraffe"
 
         it "JumpParentFolder" $ do
             _ <- runApp $ Core.update dummyState Core.JumpParentFolder
@@ -147,8 +147,6 @@ main = hspec $ do
             _ <- runApp $ Core.update dummyState Core.JumpHomeDirectory
 
             Core.currentPath dummyState `shouldBe` "/home/user"
-
-
 
 dummyFile :: FilePath -> Core.File
 dummyFile path

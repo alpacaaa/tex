@@ -87,7 +87,8 @@ update state = \case
     running newState
 
   JumpHomeDirectory -> do
-    newState <- switchFolder state (homeDirectory state)
+    home <- homeDirectoryPath
+    newState <- switchFolder state home
     running newState
 
   JumpBeginning -> do
