@@ -148,6 +148,33 @@ main = hspec $ do
 
             Core.currentPath newState `shouldBe` "/home/user"
 
+        it "JumpBeginning" $ do
+            _ <- runApp $ Core.update dummyState Core.JumpNext
+            Core.Running agg <- runApp $ Core.update dummyState Core.JumpBeginning
+
+            let result = PointedList._focus (Core.files agg)
+            result `shouldBe` dummyFile "kangaroo"
+
+        it "JumpEnd" $ do
+            Core.Running agg <- runApp $ Core.update dummyState Core.JumpEnd
+
+            let result = PointedList._focus (Core.files agg)
+            result `shouldBe` dummyFile "kitten"
+
+        it "SelectCurrentFile" $ do
+            _ <- runApp $ Core.update dummyState Core.JumpNext
+            Core.FileSelected agg <- runApp $ Core.update dummyState Core.SelectCurrentFile
+
+            agg `shouldBe` "/usr/bin/kangaroo"
+
+        it "SwitchMode" $ do
+            Core.Running agg <- runApp $ Core.update dummyState (Core.SwitchMode Core.ModeSearch)
+            Core.currentMode agg `shouldBe` Core.ModeSearch
+
+        it "UpdateSearch" $ do
+            Core.Running agg <- runApp $ Core.update dummyState (Core.UpdateSearch $ Core.SearchPattern "AdventOfCode")
+            Core.searchPattern agg `shouldBe` Core.SearchPattern "AdventOfCode"
+
 dummyFile :: FilePath -> Core.File
 dummyFile path
   = Core.File path Core.NormalFile
