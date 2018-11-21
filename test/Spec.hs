@@ -139,14 +139,14 @@ main = hspec $ do
             result `shouldBe` dummyFile "giraffe"
 
         it "JumpParentFolder" $ do
-            _ <- runApp $ Core.update dummyState Core.JumpParentFolder
+            Core.Running newState <- runApp $ Core.update dummyState Core.JumpParentFolder
 
-            Core.currentPath dummyState `shouldBe` "/usr"
+            Core.currentPath newState `shouldBe` "/usr"
 
         it "JumpHomeFolder" $ do
-            _ <- runApp $ Core.update dummyState Core.JumpHomeDirectory
+            Core.Running newState <- runApp $ Core.update dummyState Core.JumpHomeDirectory
 
-            Core.currentPath dummyState `shouldBe` "/home/user"
+            Core.currentPath newState `shouldBe` "/home/user"
 
 dummyFile :: FilePath -> Core.File
 dummyFile path
