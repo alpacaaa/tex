@@ -33,7 +33,7 @@ files =
             f
 
 main :: IO ()
-main = hspec $ do
+main = hspec $
   describe "Search" $ do
 
     it "forward search" $ do
@@ -117,7 +117,7 @@ main = hspec $ do
                            , Core.originalPath = "/"
                            , Core.homeDirectory = "/home/user"
                            , Core.currentMode = Core.ModeNavigation
-                           , Core.searchPattern = Core.SearchPattern ""
+                           , Core.searchPattern = Core.SearchPattern "giraffe"
                          }
 
         it "JumpNext" $ do
@@ -174,6 +174,21 @@ main = hspec $ do
         it "UpdateSearch" $ do
             Core.Running agg <- runApp $ Core.update dummyState (Core.UpdateSearch $ Core.SearchPattern "AdventOfCode")
             Core.searchPattern agg `shouldBe` Core.SearchPattern "AdventOfCode"
+
+        it "CommitSearch" $ do
+            Core.Running agg <- runApp $ Core.update dummyState Core.CommitSearch
+
+            let result = PointedList._focus (Core.files agg)
+
+            result `shouldBe` dummyFile "giraffe"
+            Core.currentMode agg `shouldBe` Core.ModeNavigation
+
+        it "SearchNextMatch" $ do
+            Core.Running agg <- runApp $ Core.update dummyState Core.SearchNextMatch
+
+            let result = PointedList._focus (Core.files agg)
+
+            result `shouldBe` dummyFile "giraffe"
 
 dummyFile :: FilePath -> Core.File
 dummyFile path
