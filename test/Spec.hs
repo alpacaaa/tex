@@ -10,12 +10,24 @@ newtype Dummy a = Dummy { runApp :: IO a }
   deriving (Functor, Applicative, Monad, MonadIO)
 
 instance Core.FileSystem Dummy where
+    scanDirectory "animals" = pure plants
     scanDirectory _ = pure files
 
     resolvePath "/usr/bin/.."  = pure "/usr"
     resolvePath a              = pure a
 
     homeDirectoryPath = pure "/home/user"
+
+dummyState :: Core.State
+dummyState = Core.State
+                 { Core.files = files
+                   , Core.currentPath = "/usr/bin"
+                   , Core.originalPath = "/"
+                   , Core.homeDirectory = "/home/user"
+                   , Core.currentMode = Core.ModeNavigation
+                   , Core.searchPattern = Core.SearchPattern "giraffe"
+                   , Core.history = ([], [])
+                 }
 
 files :: PointedList.PointedList Core.File
 files =
@@ -27,8 +39,22 @@ files =
                     , dummyFile "giraffe"
                     , dummyFile "elephant"
                     , dummyFile "kitten"
+                    , dummyFolder "plants"
                     ]
 
+        in
+            f
+
+plants :: PointedList.PointedList Core.File
+plants =
+        let
+            Just f =
+                PointedList.fromList
+                    [ dummyFile "ilex paraguanensis"
+                    , dummyFile "basil"
+                    , dummyFile "mint"
+                    , dummyFolder "stones"
+                    ]
         in
             f
 
@@ -55,7 +81,7 @@ main = hspec $
       searchAndAssert
         Core.Forward
         (IndexFocus 4)
-        (Core.SearchPattern "an")
+        (Core.SearchPattern "ang")
         (ExpectedPath "kangaroo")
         files
 
@@ -111,15 +137,6 @@ main = hspec $
         files
 
     describe "update" $ do
-        let dummyState = Core.State
-                         { Core.files = files
-                           , Core.currentPath = "/usr/bin/"
-                           , Core.originalPath = "/"
-                           , Core.homeDirectory = "/home/user"
-                           , Core.currentMode = Core.ModeNavigation
-                           , Core.searchPattern = Core.SearchPattern "giraffe"
-                         }
-
         it "JumpNext" $ do
             Core.Running agg <- runApp $ Core.update dummyState Core.JumpNext
             let result = PointedList._focus (Core.files agg)
@@ -142,15 +159,17 @@ main = hspec $
             Core.Running newState <- runApp $ Core.update dummyState Core.JumpParentFolder
 
             Core.currentPath newState `shouldBe` "/usr"
+            Core.history newState `shouldBe` (["/usr/bin"], [])
 
         it "JumpHomeFolder" $ do
             Core.Running newState <- runApp $ Core.update dummyState Core.JumpHomeDirectory
 
             Core.currentPath newState `shouldBe` "/home/user"
+            Core.history newState `shouldBe` (["/usr/bin"], [])
 
         it "JumpBeginning" $ do
-            _ <- runApp $ Core.update dummyState Core.JumpNext
-            Core.Running agg <- runApp $ Core.update dummyState Core.JumpBeginning
+            Core.Running prev <- runApp $ Core.update dummyState Core.JumpNext
+            Core.Running agg <- runApp $ Core.update prev Core.JumpBeginning
 
             let result = PointedList._focus (Core.files agg)
             result `shouldBe` dummyFile "kangaroo"
@@ -159,13 +178,13 @@ main = hspec $
             Core.Running agg <- runApp $ Core.update dummyState Core.JumpEnd
 
             let result = PointedList._focus (Core.files agg)
-            result `shouldBe` dummyFile "kitten"
+            result `shouldBe` dummyFolder "plants"
 
         it "SelectCurrentFile" $ do
-            _ <- runApp $ Core.update dummyState Core.JumpNext
-            Core.FileSelected agg <- runApp $ Core.update dummyState Core.SelectCurrentFile
+            Core.Running prev <- runApp $ Core.update dummyState Core.JumpNext
+            Core.FileSelected agg <- runApp $ Core.update prev Core.SelectCurrentFile
 
-            agg `shouldBe` "/usr/bin/kangaroo"
+            agg `shouldBe` "/usr/bin/panda"
 
         it "SwitchMode" $ do
             Core.Running agg <- runApp $ Core.update dummyState (Core.SwitchMode Core.ModeSearch)
@@ -190,9 +209,20 @@ main = hspec $
 
             result `shouldBe` dummyFile "giraffe"
 
+        it "Undo" $ do
+            Core.Running prev <- runApp $ Core.update dummyState Core.JumpEnd
+            Core.Running folder <- runApp $ Core.update prev Core.SelectCurrentFile
+            Core.Running home <- runApp $ Core.update folder Core.JumpHomeDirectory
+
+            Core.history home `shouldBe` (["/usr/bin/plants", "/usr/bin"], [])
+
 dummyFile :: FilePath -> Core.File
 dummyFile path
   = Core.File path Core.NormalFile
+
+dummyFolder :: FilePath -> Core.File
+dummyFolder path
+  = Core.File path Core.Folder
 
 newtype IndexFocus = IndexFocus Int
 newtype ExpectedPath = ExpectedPath FilePath
@@ -206,12 +236,12 @@ searchAndAssert
   -> IO ()
 searchAndAssert movement (IndexFocus index) search (ExpectedPath expected) fileList
   = foundPath `shouldBe` expected
-  where
+    where
     foundPath
-      = Core.filePath $ PointedList._focus result
+          = Core.filePath $ PointedList._focus result
 
     Just newFiles
-      = PointedList.moveTo index fileList
+          = PointedList.moveTo index fileList
 
     result
-      = Core.searchNext movement search newFiles
+          = Core.searchNext movement search newFiles

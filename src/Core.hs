@@ -19,6 +19,7 @@ data State
       , homeDirectory :: FilePath
       , currentMode   :: Mode
       , searchPattern :: SearchPattern
+      , history :: ([FilePath], [FilePath])
       }
   deriving (Show)
 
@@ -57,6 +58,8 @@ data Cmd
   | UpdateSearch SearchPattern
   | SearchNextMatch
   | CommitSearch
+  | Undo
+  | Redo
   deriving (Show)
 
 data UpdateResult
@@ -128,6 +131,12 @@ update state = \case
   SearchNextMatch ->
     running $ selectNextSearchMatch Forward state
 
+  Undo ->
+    running =<< navigateHistory (fst $ history state)
+
+  Redo ->
+    running =<< navigateHistory (snd $ history state)
+
   where
     running newState
       = pure (Running newState)
@@ -143,6 +152,9 @@ update state = \case
         running $ state { files = newFiles }
       Nothing ->
         running state
+
+    navigateHistory [] = pure state
+    navigateHistory (x:_) = switchFolder state x
 
 scanAndSortFolder :: FileSystem m => FilePath -> m FilesList
 scanAndSortFolder path = do
@@ -162,16 +174,24 @@ newStateFromFolder path = do
         , homeDirectory = home
         , currentMode   = ModeNavigation
         , searchPattern = SearchPattern ""
+        , history       = ([], [])
         }
 
 switchFolder :: FileSystem m => State -> FilePath -> m State
 switchFolder state path = do
   canonical <- resolvePath path
   newFiles  <- scanAndSortFolder canonical
-  pure state
-        { files       = newFiles
-        , currentPath = canonical
-        }
+  pure $ changeHistory
+       (state { files = newFiles }) canonical
+
+changeHistory :: State -> FilePath -> State
+changeHistory state newPath
+  | newPath `List.elem` new = state { history = (current:old, drop 1 new), currentPath = newPath }
+  | not(null old) && List.head old == newPath = state { history = (drop 1 old, current:new), currentPath = newPath }
+  | otherwise = state { history = (current:old, []), currentPath = newPath }
+  where
+      (old, new) = history state
+      current    = currentPath state
 
 sortFiles :: FilesList -> FilesList
 sortFiles filesList

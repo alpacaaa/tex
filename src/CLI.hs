@@ -83,6 +83,8 @@ handleNavigationEvent ev
           '/' -> AppCmd $ Core.SwitchMode Core.ModeSearch
           'n' -> AppCmd Core.SearchNextMatch
           'q' -> Quit
+          'u' -> AppCmd Core.Undo
+          'U' -> AppCmd Core.Redo
           _   -> UnrecognizedInput ev
 
       Termbox.EventKey Termbox.KeyArrowDown _ ->
