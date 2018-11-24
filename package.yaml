@@ -1,22 +1,14 @@
-name:                netrw-hs
+name:                tex
 version:             0.1.0.0
-github:              "githubuser/netrw-hs"
+github:              "alpacaaa/tex-file-explorer"
 license:             BSD3
-author:              "Author name here"
-maintainer:          "example@example.com"
-copyright:           "2018 Author name here"
+author:              "Marco Sampellegrini"
+maintainer:          "babbonatale@alpacaaa.net"
 
 extra-source-files:
 - README.md
 
-# Metadata used when publishing your package
-# synopsis:            Short description of your package
-# category:            Web
-
-# To avoid duplicated efforts in documentation and dealing with the
-# complications of embedding Haddock markup inside cabal files, it is
-# common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/githubuser/netrw-hs#readme>
+description:         Please see the README on GitHub at <https://github.com/alpacaaa/tex-file-explorer#readme>
 
 dependencies:
 - base
@@ -42,7 +34,7 @@ default-extensions:
 - StrictData
 
 executables:
-  netrw-hs-exe:
+  tex-exe:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -50,10 +42,10 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - netrw-hs
+    - tex
 
 tests:
-  netrw-hs-test:
+  tex-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -62,4 +54,4 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - hspec
-    - netrw-hs
+    - tex
