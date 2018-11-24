@@ -19,7 +19,7 @@ data State
       , homeDirectory :: FilePath
       , currentMode   :: Mode
       , searchPattern :: SearchPattern
-      , history :: ([FilePath], [FilePath])
+      , history       :: History
       }
   deriving (Show)
 
@@ -38,6 +38,13 @@ data File
 
 newtype SearchPattern
   = SearchPattern String
+  deriving (Show, Eq)
+
+data History
+  = History
+      { undoPaths :: [FilePath]
+      , redoPaths :: [FilePath]
+      }
   deriving (Show, Eq)
 
 data Mode
@@ -132,10 +139,10 @@ update state = \case
     running $ selectNextSearchMatch Forward state
 
   Undo ->
-    running =<< navigateHistory (fst $ history state)
+    navigateHistory (undoPaths $ history state)
 
   Redo ->
-    running =<< navigateHistory (snd $ history state)
+    navigateHistory (redoPaths $ history state)
 
   where
     running newState
@@ -153,8 +160,11 @@ update state = \case
       Nothing ->
         running state
 
-    navigateHistory [] = pure state
-    navigateHistory (x:_) = switchFolder state x
+    navigateHistory = \case
+      []    -> running state
+      (x:_) -> do
+        newState <- switchFolder state x
+        running newState
 
 scanAndSortFolder :: FileSystem m => FilePath -> m FilesList
 scanAndSortFolder path = do
@@ -174,24 +184,27 @@ newStateFromFolder path = do
         , homeDirectory = home
         , currentMode   = ModeNavigation
         , searchPattern = SearchPattern ""
-        , history       = ([], [])
+        , history       = History [] []
         }
 
 switchFolder :: FileSystem m => State -> FilePath -> m State
 switchFolder state path = do
   canonical <- resolvePath path
   newFiles  <- scanAndSortFolder canonical
-  pure $ changeHistory
-       (state { files = newFiles }) canonical
+  let newHistory
+        = updateHistory (history state) (currentPath state) canonical
 
-changeHistory :: State -> FilePath -> State
-changeHistory state newPath
-  | newPath `List.elem` new = state { history = (current:old, drop 1 new), currentPath = newPath }
-  | not(null old) && List.head old == newPath = state { history = (drop 1 old, current:new), currentPath = newPath }
-  | otherwise = state { history = (current:old, []), currentPath = newPath }
-  where
-      (old, new) = history state
-      current    = currentPath state
+  pure state
+        { files       = newFiles
+        , currentPath = canonical
+        , history     = newHistory
+        }
+
+updateHistory :: History -> FilePath -> FilePath -> History
+updateHistory (History undo redo) current newPath
+  | newPath `List.elem` redo      = History (current:undo) (drop 1 redo)
+  | safeHead undo == Just newPath = History (drop 1 undo)  (current:redo)
+  | otherwise                     = History (current:undo) []
 
 sortFiles :: FilesList -> FilesList
 sortFiles filesList

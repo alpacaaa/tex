@@ -26,7 +26,7 @@ dummyState = Core.State
                    , Core.homeDirectory = "/home/user"
                    , Core.currentMode = Core.ModeNavigation
                    , Core.searchPattern = Core.SearchPattern "giraffe"
-                   , Core.history = ([], [])
+                   , Core.history = Core.History [] []
                  }
 
 files :: PointedList.PointedList Core.File
@@ -159,13 +159,13 @@ main = hspec $
             Core.Running newState <- runApp $ Core.update dummyState Core.JumpParentFolder
 
             Core.currentPath newState `shouldBe` "/usr"
-            Core.history newState `shouldBe` (["/usr/bin"], [])
+            Core.history newState `shouldBe` Core.History ["/usr/bin"] []
 
         it "JumpHomeFolder" $ do
             Core.Running newState <- runApp $ Core.update dummyState Core.JumpHomeDirectory
 
             Core.currentPath newState `shouldBe` "/home/user"
-            Core.history newState `shouldBe` (["/usr/bin"], [])
+            Core.history newState `shouldBe` Core.History ["/usr/bin"] []
 
         it "JumpBeginning" $ do
             Core.Running prev <- runApp $ Core.update dummyState Core.JumpNext
@@ -214,7 +214,7 @@ main = hspec $
             Core.Running folder <- runApp $ Core.update prev Core.SelectCurrentFile
             Core.Running home <- runApp $ Core.update folder Core.JumpHomeDirectory
 
-            Core.history home `shouldBe` (["/usr/bin/plants", "/usr/bin"], [])
+            Core.history home `shouldBe` Core.History ["/usr/bin/plants", "/usr/bin"] []
 
 dummyFile :: FilePath -> Core.File
 dummyFile path
