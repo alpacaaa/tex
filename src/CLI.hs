@@ -155,18 +155,10 @@ renderTree env state buffer
 
 drawCursor :: Env -> Core.State -> Buffer -> Buffer
 drawCursor env state buffer
-  = foldr go buffer [0..width]
+  = applyStyleToRow env buffer cursorRow (Termbox.underline, mempty)
   where
     cursorRow
       = cursorPosition env state
-
-    (width, _)
-      = windowSize env
-
-    go col
-      = alterBuffer
-          (col, cursorRow)
-          (Termbox.Cell ' ' Termbox.underline mempty)
 
 drawFolderInfo :: Env -> Core.State -> Buffer -> Buffer
 drawFolderInfo _ state buffer
@@ -187,18 +179,21 @@ drawFolderInfo _ state buffer
 
 drawSearchInput :: Env -> Core.State -> Buffer -> Buffer
 drawSearchInput env state buffer
-  = printString
-      (0, height - 1)
+  = applyStyleToRow env buffer lastRow (mempty, mempty)
+  & printString
+      (0, lastRow)
       (Termbox.bold <> Termbox.white, Termbox.cyan)
       "search:"
-      buffer
   & printString
-      (7, height - 1)
+      (7, lastRow)
       (mempty, mempty)
       search
   where
     (_, height)
       = windowSize env
+
+    lastRow
+      = height - 1
 
     Core.SearchPattern search
       = Core.searchPattern state
@@ -272,3 +267,14 @@ determineOffset (_, height) state
 
     threshold
       = round (0.75 * fromIntegral height :: Double)
+
+-- | Will override all styles and text content.
+applyStyleToRow :: Env -> Buffer -> Int -> (Termbox.Attr, Termbox.Attr) -> Buffer
+applyStyleToRow env buffer row style
+  = foldr go buffer [0..width]
+  where
+    go col
+      = alterBuffer (col, row) (buildCell ' ' style)
+
+    (width, _)
+      = windowSize env
