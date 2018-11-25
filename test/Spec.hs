@@ -26,6 +26,7 @@ dummyState = Core.State
                    , Core.homeDirectory = "/home/user"
                    , Core.currentMode = Core.ModeNavigation
                    , Core.searchPattern = Core.SearchPattern "giraffe"
+                   , Core.searchMovement = Core.Forward
                    , Core.history = Core.History [] []
                  }
 
