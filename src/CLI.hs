@@ -35,13 +35,14 @@ render state = do
   Termbox.hideCursor
 
   size <- Termbox.size
-  let offset= determineOffset size state
+  let offset
+        = determineOffset size state
 
       env
-       = Env
-          { windowSize   = size
-          , bufferOffset = offset
-          }
+        = Env
+            { windowSize   = size
+            , bufferOffset = offset
+            }
 
       mainBuffer
         = drawCursor env state mempty
@@ -50,8 +51,14 @@ render state = do
       folderInfo
         = drawFolderInfo env state mempty
 
+      searchInput
+        = case Core.currentMode state of
+            Core.ModeNavigation -> mempty
+            Core.ModeSearch -> drawSearchInput env state mempty
+
   renderBuffer folderInfo (2, 1)
   renderBuffer mainBuffer (2, 2)
+  renderBuffer searchInput (0, 0)
 
   Termbox.flush
 
@@ -177,6 +184,24 @@ drawFolderInfo _ state buffer
 
     home = Core.homeDirectory state
     path = Core.currentPath state
+
+drawSearchInput :: Env -> Core.State -> Buffer -> Buffer
+drawSearchInput env state buffer
+  = printString
+      (0, height - 1)
+      (Termbox.bold <> Termbox.white, Termbox.cyan)
+      "search:"
+      buffer
+  & printString
+      (7, height - 1)
+      (mempty, mempty)
+      search
+  where
+    (_, height)
+      = windowSize env
+
+    Core.SearchPattern search
+      = Core.searchPattern state
 
 renderBuffer :: Buffer -> (Int, Int) -> IO ()
 renderBuffer buffer (offsetX, offsetY)
