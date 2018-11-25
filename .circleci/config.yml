@@ -1,0 +1,21 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: 'fpco/stack-build:latest'
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - tex-v1-{{ checksum "package.yaml" }}
+      - run:
+          name: Build
+          command: stack build --fast
+      - run:
+          name: Test
+          command: stack test
+      - save_cache:
+          key: tex-v1-{{ checksum "package.yaml" }}
+          paths:
+            - '~/.stack'
+            - '.stack-work'
