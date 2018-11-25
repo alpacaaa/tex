@@ -80,7 +80,8 @@ handleNavigationEvent ev
           '~' -> AppCmd Core.JumpHomeDirectory
           'g' -> AppCmd Core.JumpBeginning
           'G' -> AppCmd Core.JumpEnd
-          '/' -> AppCmd $ Core.SwitchMode Core.ModeSearch
+          '/' -> AppCmd $ Core.SwitchSearchMode Core.Forward
+          '?' -> AppCmd $ Core.SwitchSearchMode Core.Backward
           'n' -> AppCmd Core.SearchNextMatch
           'N' -> AppCmd Core.SearchPrevMatch
           'q' -> Quit

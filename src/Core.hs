@@ -13,13 +13,14 @@ type FilesList
 
 data State
   = State
-      { files         :: FilesList
-      , currentPath   :: FilePath
-      , originalPath  :: FilePath
-      , homeDirectory :: FilePath
-      , currentMode   :: Mode
-      , searchPattern :: SearchPattern
-      , history       :: History
+      { files          :: FilesList
+      , currentPath    :: FilePath
+      , originalPath   :: FilePath
+      , homeDirectory  :: FilePath
+      , currentMode    :: Mode
+      , searchPattern  :: SearchPattern
+      , searchMovement :: Movement
+      , history        :: History
       }
   deriving (Show)
 
@@ -62,6 +63,7 @@ data Cmd
   | JumpEnd
   | SelectCurrentFile
   | SwitchMode Mode
+  | SwitchSearchMode Movement
   | UpdateSearch SearchPattern
   | SearchNextMatch
   | SearchPrevMatch
@@ -128,12 +130,19 @@ update state = \case
   SwitchMode mode ->
     running $ state { currentMode = mode }
 
+  SwitchSearchMode movement ->
+    running $ state
+      { currentMode    = ModeSearch
+      , searchMovement = movement
+      , searchPattern  = SearchPattern ""
+      }
+
   UpdateSearch search ->
     running $ state { searchPattern = search }
 
   CommitSearch ->
     running
-      $ selectNextSearchMatch Forward
+      $ selectNextSearchMatch (searchMovement state)
       $ state { currentMode = ModeNavigation }
 
   SearchNextMatch ->
@@ -182,13 +191,14 @@ newStateFromFolder path = do
   home <- homeDirectoryPath
 
   pure State
-        { files         = filesList
-        , currentPath   = canonical
-        , originalPath  = canonical
-        , homeDirectory = home
-        , currentMode   = ModeNavigation
-        , searchPattern = SearchPattern ""
-        , history       = History [] []
+        { files          = filesList
+        , currentPath    = canonical
+        , originalPath   = canonical
+        , homeDirectory  = home
+        , currentMode    = ModeNavigation
+        , searchPattern  = SearchPattern ""
+        , searchMovement = Forward
+        , history        = History [] []
         }
 
 switchFolder :: FileSystem m => State -> FilePath -> m State
