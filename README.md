@@ -1,4 +1,7 @@
 # Tex
+
+[![Build Status](https://img.shields.io/circleci/project/github/alpacaaa/tex.svg)](https://circleci.com/gh/alpacaaa/tex)
+
 A terminal file explorer.
 Or for the romantics, a _typed_ file explorer.
 
