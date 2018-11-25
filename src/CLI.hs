@@ -129,6 +129,15 @@ handleSearchEvent (Core.SearchPattern searchPattern) ev
       Termbox.EventKey Termbox.KeyEnter _ ->
         AppCmd Core.CommitSearch
 
+      Termbox.EventKey Termbox.KeyBackspace2 _ ->
+        let
+          -- All but the last element
+          newPattern = zipWith const searchPattern $ drop 1 searchPattern
+        in
+        AppCmd
+          $ Core.UpdateSearch
+          $ Core.SearchPattern newPattern
+
       Termbox.EventKey (Termbox.KeyChar key) _  ->
         AppCmd
           $ Core.UpdateSearch
