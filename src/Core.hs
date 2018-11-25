@@ -64,6 +64,7 @@ data Cmd
   | SwitchMode Mode
   | UpdateSearch SearchPattern
   | SearchNextMatch
+  | SearchPrevMatch
   | CommitSearch
   | Undo
   | Redo
@@ -137,6 +138,9 @@ update state = \case
 
   SearchNextMatch ->
     running $ selectNextSearchMatch Forward state
+
+  SearchPrevMatch ->
+    running $ selectNextSearchMatch Backward state
 
   Undo ->
     navigateHistory (undoPaths $ history state)

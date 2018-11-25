@@ -82,6 +82,7 @@ handleNavigationEvent ev
           'G' -> AppCmd Core.JumpEnd
           '/' -> AppCmd $ Core.SwitchMode Core.ModeSearch
           'n' -> AppCmd Core.SearchNextMatch
+          'N' -> AppCmd Core.SearchPrevMatch
           'q' -> Quit
           'u' -> AppCmd Core.Undo
           'U' -> AppCmd Core.Redo
