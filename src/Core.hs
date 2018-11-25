@@ -264,74 +264,41 @@ data Movement
   | Backward
   deriving (Show, Eq)
 
--- | Given a PointedList and a predicate, returns a
--- | modified PointedList where the focus is on the
--- | first element that matches the predicate. Loop
--- | starts at current focus.
-moveFocus
-  :: (a -> Bool)
-  -> Movement
-  -> PointedList.PointedList a
-  -> PointedList.PointedList a
-moveFocus predicate movement list
-  = fromMaybe list
-  $ case foundIndex of
-      Just index ->
-        case movement of
-          Forward  -> doForward index
-          Backward -> doBackward index
-      Nothing ->
-        Nothing
-
+searchNext :: Movement -> SearchPattern -> FilesList -> Maybe Int
+searchNext movement search filesList
+  = fst <$> nextMatch
   where
-    foundIndex
-      = List.findIndex predicate targetList
-
-    suffix
-      = PointedList._suffix list
-
-    suffixLen
-      = List.length suffix
-
-    prefix
-      = PointedList._reversedPrefix list
-
-    prefixLen
-      = List.length prefix
-
-    targetList
+    nextMatch
       = case movement of
-          Forward  -> suffix <> List.reverse prefix
-          Backward -> prefix <> List.reverse suffix
+          Forward  -> safeHead (greater <> lesser)
+          Backward -> safeHead (reverse lesser <> reverse greater)
 
-    doForward index
-      = if index >= suffixLen
-          then let move = index - suffixLen
-               in PointedList.moveTo move list
-          else
-            PointedList.moveN (index + 1) list
+    (greater, lesser)
+      = List.partition (\(i, _) -> i > selectedIndex) allMatches
 
-    doBackward index
-      = if index >= prefixLen
-          then let move = prefixLen + 1 + (suffixLen - index)
-               in PointedList.moveTo move list
-          else
-            PointedList.moveN ((index + 1) * (-1)) list
+    allMatches
+      = filter match indexedList
+
+    indexedList
+      = zipWith (,) [0..] (toList filesList)
+
+    match (index, file)
+      = if index /= selectedIndex
+        then matchPattern search (filePath file)
+        else False
+
+    selectedIndex
+      = PointedList.index filesList
 
 selectNextSearchMatch :: Movement -> State -> State
 selectNextSearchMatch movement state
-  = state { files = updated }
+  = case result of
+      Just newFiles -> state { files = newFiles }
+      Nothing -> state
   where
-    updated
-      = searchNext movement (searchPattern state) (files state)
+    filesList
+      = files state
 
-searchNext
-  :: Movement
-  -> SearchPattern
-  -> FilesList
-  -> FilesList
-searchNext movement search filesList
-  = moveFocus match movement filesList
-  where
-    match file
-      = matchPattern search (filePath file)
+    result = do
+      index <- searchNext movement (searchPattern state) filesList
+      PointedList.moveTo index filesList

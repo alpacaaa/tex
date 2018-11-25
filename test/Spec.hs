@@ -234,14 +234,14 @@ searchAndAssert
   -> ExpectedPath
   -> Core.FilesList
   -> IO ()
-searchAndAssert movement (IndexFocus index) search (ExpectedPath expected) fileList
+searchAndAssert movement (IndexFocus index) search (ExpectedPath expected) filesList
   = foundPath `shouldBe` expected
-    where
-    foundPath
-          = Core.filePath $ PointedList._focus result
+  where
+    Just foundPath
+      = Core.filePath . PointedList._focus <$> PointedList.moveTo newIndex filesList
 
     Just newFiles
-          = PointedList.moveTo index fileList
+      = PointedList.moveTo index filesList
 
-    result
-          = Core.searchNext movement search newFiles
+    Just newIndex
+      = Core.searchNext movement search newFiles
