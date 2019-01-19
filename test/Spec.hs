@@ -26,7 +26,7 @@ dummyState = Core.State
                    , Core.homeDirectory = "/home/user"
                    , Core.currentMode = Core.ModeNavigation
                    , Core.searchPattern = Core.SearchPattern "giraffe"
-                   , Core.searchMovement = Core.Forward
+                   , Core.searchDirection = Core.Forward
                    , Core.history = Core.History [] []
                  }
 
@@ -229,13 +229,13 @@ newtype IndexFocus = IndexFocus Int
 newtype ExpectedPath = ExpectedPath FilePath
 
 searchAndAssert
-  :: Core.Movement
+  :: Core.Direction
   -> IndexFocus
   -> Core.SearchPattern
   -> ExpectedPath
   -> Core.FilesList
   -> IO ()
-searchAndAssert movement (IndexFocus index) search (ExpectedPath expected) filesList
+searchAndAssert direction (IndexFocus index) search (ExpectedPath expected) filesList
   = foundPath `shouldBe` expected
   where
     Just foundPath
@@ -245,4 +245,4 @@ searchAndAssert movement (IndexFocus index) search (ExpectedPath expected) files
       = PointedList.moveTo index filesList
 
     Just newIndex
-      = Core.searchNext movement search newFiles
+      = Core.searchNext direction search newFiles

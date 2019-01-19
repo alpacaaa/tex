@@ -7,23 +7,40 @@ import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.List.PointedList as PointedList
 
+{-
+  This module contains all the business logic, defined in the most
+  abstract possible way. We declare a `FileSystem` monad to describe the
+  operations we need to perform, but defer the actual implementation for
+  elsewhere (a concrete implementation can be found in `App` while tests
+  use a mock instance).
 
+  Important data types in here are `State` and `Cmd`.
+  The most important function is probably `update`.
+-}
+
+-- | The list of files in the current directory.
 type FilesList
   = PointedList.PointedList File
 
+-- | Application state.
+-- Everything we could possibly ever need should be carried around here.
+-- There's no global state or mutable state anywhere, at the end of the day
+-- it's just a matter of carring around a `State` value, reading from it to
+-- render the screen and updating it when needed. Almost sounds too boring :)
 data State
   = State
-      { files          :: FilesList
-      , currentPath    :: FilePath
-      , originalPath   :: FilePath
-      , homeDirectory  :: FilePath
-      , currentMode    :: Mode
-      , searchPattern  :: SearchPattern
-      , searchMovement :: Movement
-      , history        :: History
+      { files           :: FilesList
+      , currentPath     :: FilePath
+      , originalPath    :: FilePath
+      , homeDirectory   :: FilePath
+      , currentMode     :: Mode
+      , searchPattern   :: SearchPattern
+      , searchDirection :: Direction
+      , history         :: History
       }
   deriving (Show)
 
+-- | Which files are we working with?
 data FileType
   = NormalFile
   | Folder
@@ -41,6 +58,13 @@ newtype SearchPattern
   = SearchPattern String
   deriving (Show, Eq)
 
+data Direction
+  = Forward
+  | Backward
+  deriving (Show, Eq)
+
+-- | Entering or exiting a directory shouldn't be a "destructive" operation.
+-- We just store whichever directories we might need to undo/redo an operation.
 data History
   = History
       { undoPaths :: [FilePath]
@@ -48,11 +72,16 @@ data History
       }
   deriving (Show, Eq)
 
+-- | At any given time, we're either navigating the directory tree, or we're
+-- typing in the search box.
 data Mode
   = ModeNavigation
   | ModeSearch
   deriving (Show, Eq)
 
+-- | These are all the operations we support. In other words, our application
+-- can handle any of these commands, it's the UI responsability to determine
+-- which command should be fed into the app loop.
 data Cmd
   = JumpNext
   | JumpPrev
@@ -63,7 +92,7 @@ data Cmd
   | JumpEnd
   | SelectCurrentFile
   | SwitchMode Mode
-  | SwitchSearchMode Movement
+  | SwitchSearchMode Direction
   | UpdateSearch SearchPattern
   | SearchNextMatch
   | SearchPrevMatch
@@ -72,15 +101,37 @@ data Cmd
   | Redo
   deriving (Show)
 
+-- | Whenever we run the `update` function, we could be in one of two states.
+-- If the user has selected a file, we're done and the app should stop.
 data UpdateResult
   = FileSelected FilePath
   | Running State
 
+-- | Tasty layer of our cake.
+-- Thanks to mtl, we can just declare what our business logic needs in order to
+-- work, *without* constraining ourselves to any monad or ever talking about IO.
 class Monad m => FileSystem m where
   scanDirectory :: FilePath -> m FilesList
   resolvePath   :: FilePath -> m FilePath
   homeDirectoryPath :: m FilePath
 
+-- | Main function that determines what happens next.
+-- Note the constraint: provided we're running in a monad that supports
+-- `FileSystem` operations, then given the current state and a command,
+-- we can determine if the app should still be running (with an updated state)
+-- or it should exit.
+
+{-
+  Pay close attention to how easy it is to work with plain and simple data
+  types. In the few cases where we actually *need* to do something (ie.
+  scan all the files in a directory), we can still write nice and abstract
+  code that uses methods from the `FileSystem` class, even though we don't
+  know what the actual implementation is going to be when the function is run.
+
+  This function could be split further, as it's fairly big already. The beauty
+  of working with functions is that you can just compose them, so refactoring
+  is definitely not going to be a problem here ;)
+-}
 update :: (FileSystem m) => State -> Cmd -> m UpdateResult
 update state = \case
   JumpNext ->
@@ -130,11 +181,11 @@ update state = \case
   SwitchMode mode ->
     running $ state { currentMode = mode }
 
-  SwitchSearchMode movement ->
+  SwitchSearchMode direction ->
     running $ state
-      { currentMode    = ModeSearch
-      , searchMovement = movement
-      , searchPattern  = SearchPattern ""
+      { currentMode     = ModeSearch
+      , searchDirection = direction
+      , searchPattern   = SearchPattern ""
       }
 
   UpdateSearch search ->
@@ -142,7 +193,7 @@ update state = \case
 
   CommitSearch ->
     running
-      $ selectNextSearchMatch (searchMovement state)
+      $ selectNextSearchMatch (searchDirection state)
       $ state { currentMode = ModeNavigation }
 
   SearchNextMatch ->
@@ -191,14 +242,14 @@ newStateFromFolder path = do
   home <- homeDirectoryPath
 
   pure State
-        { files          = filesList
-        , currentPath    = canonical
-        , originalPath   = canonical
-        , homeDirectory  = home
-        , currentMode    = ModeNavigation
-        , searchPattern  = SearchPattern ""
-        , searchMovement = Forward
-        , history        = History [] []
+        { files           = filesList
+        , currentPath     = canonical
+        , originalPath    = canonical
+        , homeDirectory   = home
+        , currentMode     = ModeNavigation
+        , searchPattern   = SearchPattern ""
+        , searchDirection = Forward
+        , history         = History [] []
         }
 
 switchFolder :: FileSystem m => State -> FilePath -> m State
@@ -273,17 +324,13 @@ matchPattern (SearchPattern search) path
   where
     toLower = map Char.toLower
 
-data Movement
-  = Forward
-  | Backward
-  deriving (Show, Eq)
-
-searchNext :: Movement -> SearchPattern -> FilesList -> Maybe Int
-searchNext movement search filesList
+-- | Find the index of the next search result (if possible).
+searchNext :: Direction -> SearchPattern -> FilesList -> Maybe Int
+searchNext direction search filesList
   = fst <$> nextMatch
   where
     nextMatch
-      = case movement of
+      = case direction of
           Forward  -> safeHead (greater <> lesser)
           Backward -> safeHead (reverse lesser <> reverse greater)
 
@@ -304,8 +351,8 @@ searchNext movement search filesList
     selectedIndex
       = PointedList.index filesList
 
-selectNextSearchMatch :: Movement -> State -> State
-selectNextSearchMatch movement state
+selectNextSearchMatch :: Direction -> State -> State
+selectNextSearchMatch direction state
   = case result of
       Just newFiles -> state { files = newFiles }
       Nothing -> state
@@ -314,5 +361,5 @@ selectNextSearchMatch movement state
       = files state
 
     result = do
-      index <- searchNext movement (searchPattern state) filesList
+      index <- searchNext direction (searchPattern state) filesList
       PointedList.moveTo index filesList
