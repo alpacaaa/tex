@@ -21,11 +21,15 @@ import qualified CLI
 -- of using it directly? The answer is just below. We need a newtype so that
 -- we can provide an instance for the `FileSystem` class that our application
 -- needs to run.
+-- Also, no scary monad transformers. Hooray!
+-- Can we really write real world apps without a giant transformers stack?
+-- I'm a big fan of the "ReaderT design pattern" but in this case, we don't
+-- even need to go that far.
 newtype App a
   = App { runApp :: IO a }
   deriving (Functor, Applicative, Monad, MonadIO)
 
--- | Middle layer of our tasty cake.
+-- | Other half of our tasty cake middle layer.
 -- This is where we define actual instances for all the abstract classes we
 -- defined in our business logic. The nitty gritty, dirty, possibly IO heavy
 -- code should be confined to this instances, the business logic should

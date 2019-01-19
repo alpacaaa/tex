@@ -11,8 +11,11 @@ import qualified Data.List.PointedList as PointedList
   This module contains all the business logic, defined in the most
   abstract possible way. We declare a `FileSystem` monad to describe the
   operations we need to perform, but defer the actual implementation for
-  elsewhere (a concrete implementation can be found in `App` while tests
+  later (a concrete implementation can be found in `App` while tests
   use a mock instance).
+
+  In Haskell cake parlance, this would be the third layer (just pure functions
+  and simple types).
 
   Important data types in here are `State` and `Cmd`.
   The most important function is probably `update`.
@@ -107,7 +110,8 @@ data UpdateResult
   = FileSelected FilePath
   | Running State
 
--- | Tasty layer of our cake.
+-- | This belongs to the second layer (yes, I'm talking about cakes
+-- again; stay focused!) but I don't think it warranted a separate module.
 -- Thanks to mtl, we can just declare what our business logic needs in order to
 -- work, *without* constraining ourselves to any monad or ever talking about IO.
 class Monad m => FileSystem m where
