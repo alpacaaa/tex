@@ -8,7 +8,16 @@ import qualified Termbox
 
 import qualified Core
 
+{-
+  This module does a lot of IO, it's pretty concrete and it's not necessarely
+  interesting from an architecture point of view.
 
+  The main idea is that when the CLI is running, it will emit some events of
+  type `Event`. Certain events correlate directly with a `Core.Cmd` and we can
+  use them to advance the state of the application.
+-}
+
+-- A CLI event.
 data Event
   = Quit
   | UnrecognizedInput Termbox.Event
