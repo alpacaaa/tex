@@ -23,21 +23,29 @@ data Event
   | UnrecognizedInput Termbox.Event
   | AppCmd Core.Cmd
 
+-- | The screen is basically a 2d grid.
 type Point
   = (Int, Int)
 
+-- | Instead of writing directly to the screen, we use this data structure to
+-- buffer all the changes we'd like to render in this frame. A `Termbox.Cell`
+-- represents one character on the screen, with its foreground and background
+-- colors.
 type Buffer
   = Map Point Termbox.Cell
 
 data Env
   = Env
       { windowSize   :: (Int, Int)
+      -- | how far down the screen the selected file is
       , bufferOffset :: Int
       }
 
 run :: IO a -> IO a
 run = Termbox.main
 
+-- | Every time the state is updated, a re-render is needed to update the
+-- screen. We then wait for an event and return it.
 render :: Core.State -> IO Event
 render state = do
   Termbox.clear mempty mempty
@@ -166,7 +174,7 @@ renderTree env state buffer
         & enum
 
     go (row, file)
-      = printString
+      = writeToBuffer
           (0, row)
           (fileStyle file)
           (Core.fileDisplayName file)
@@ -180,7 +188,7 @@ drawCursor env state buffer
 
 drawFolderInfo :: Env -> Core.State -> Buffer -> Buffer
 drawFolderInfo _ state buffer
-  = printString
+  = writeToBuffer
       (0, 0)
       (Termbox.green <> Termbox.bold, mempty)
       homeStripped
@@ -198,11 +206,11 @@ drawFolderInfo _ state buffer
 drawSearchInput :: Env -> Core.State -> Buffer -> Buffer
 drawSearchInput env state buffer
   = applyStyleToRow env buffer lastRow (mempty, mempty)
-  & printString
+  & writeToBuffer
       (0, lastRow)
       (Termbox.bold <> Termbox.white, Termbox.cyan)
       "search:"
-  & printString
+  & writeToBuffer
       (7, lastRow)
       (mempty, mempty)
       search
@@ -216,6 +224,8 @@ drawSearchInput env state buffer
     Core.SearchPattern search
       = Core.searchPattern state
 
+-- | A `Buffer` is just a representation of what needs to be displayed.
+-- This function renders the buffer content to the screen.
 renderBuffer :: Buffer -> (Int, Int) -> IO ()
 renderBuffer buffer (offsetX, offsetY)
   = for_ (Map.toList buffer) $ \((x, y), cell) ->
@@ -241,18 +251,18 @@ buildCell c (fg, bg)
 enum :: [a] -> [(Int, a)]
 enum value = zipWith (,) [0..] value
 
-printString
+writeToBuffer
   :: Point
   -> (Termbox.Attr, Termbox.Attr)
   -> String
   -> Buffer
   -> Buffer
-printString point@(col, row) style value buffer
+writeToBuffer point@(col, row) style value buffer
   = case value of
       [] ->
         buffer
       x : xs ->
-        printString (col + 1, row) style xs
+        writeToBuffer (col + 1, row) style xs
         $ alterBuffer point (buildCell x style) buffer
 
 fileStyle :: Core.File -> (Termbox.Attr, Termbox.Attr)
